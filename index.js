@@ -2495,7 +2495,7 @@ app.get("/api/my-collaborations", async (req, res) => {
     try {
         const me = await mgUserGet(userId);
         const email = me && me.data && me.data.email;
-        if (email) {
+        if (email && typeof email === "string" && me.data.emailVerified === true) {
             const normalizedEmail = email.toLowerCase();
             const pending = await collaboratorsCol.find({ email: normalizedEmail, userId: null }).toArray();
             for (const row of pending) {
@@ -3434,11 +3434,52 @@ async function obfuscateWithFallback(source) {
     return data.output;
 }
 
+const PROMETHEUS_SERVERS = [
+    "https://prometheus-obfuscator-production-a13c.up.railway.app/api/obfuscate",
+    "https://prometheus-obfuscator-production-774f.up.railway.app/api/obfuscate",
+    "https://proth-production.up.railway.app/api/obfuscate"
+];
+const PROMETHEUS_PRESET = "Ultra";
+let prometheusIndex = 0; // rotates after each success so load is spread across the servers
+
+async function obfuscateWithPrometheus(source) {
+    const start = prometheusIndex;
+    let lastErr = null;
+    for (let i = 0; i < PROMETHEUS_SERVERS.length; i++) {
+        const idx = (start + i) % PROMETHEUS_SERVERS.length;
+        try {
+            const resp = await axios.post(
+                PROMETHEUS_SERVERS[idx],
+                { code: source, preset: PROMETHEUS_PRESET },
+                { timeout: 30000, maxBodyLength: Infinity, maxContentLength: Infinity }
+            );
+            const d = resp.data || {};
+            const out = d.code || d.result || d.obfuscated || d.output;
+            if (typeof out !== "string" || !out) throw new Error("empty response");
+            assertUsableLua(out, "Prometheus");
+            prometheusIndex = (idx + 1) % PROMETHEUS_SERVERS.length;
+            return out;
+        } catch (err) {
+            lastErr = err;
+            console.error(`Prometheus server ${idx} failed:`, err.message);
+        }
+    }
+    throw new Error("All Prometheus servers failed: " + (lastErr && lastErr.message));
+}
+
 async function newObfuscate(source) {
     try {
         return await obfuscateWithLeakD(source);
     } catch (err) {
         console.error("LeakD API failed, trying fallback:", err.message);
+    }
+
+    try {
+        const out = await obfuscateWithPrometheus(source);
+        console.log("Prometheus obfuscator succeeded.");
+        return out;
+    } catch (err) {
+        console.error("Prometheus obfuscator failed, trying last fallback:", err.message);
     }
 
     try {
