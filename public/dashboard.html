@@ -1666,6 +1666,7 @@ async function deleteIntegration(id) {
 }
 
 // ── KEY MANAGER ─────────────────────────────────────────────────────────────────
+function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 let currentKeyScriptId = null;
 
 async function populateScriptSelect() {
@@ -1930,7 +1931,7 @@ function onKeyIntChange() {
 }
 
 function previewCheckpointLink() {
-  const scriptId = document.getElementById("keyScriptSelect")?.value;
+  const scriptId = document.getElementById("keyScriptSelect")?.value || currentKeyScriptId;
   const isCustom = document.getElementById("keyIntSelect")?.value === "__custom__";
   // customCheckpointUrl shows the REDIRECT DESTINATION the owner's shortlink
   // must point back to — this was previously set to the checkpoint START
@@ -1939,7 +1940,7 @@ function previewCheckpointLink() {
   // users back to the start page instead of the actual callback meant the
   // checkpoint could never complete — /custom-complete reads the session
   // cookie set here and is the one route that actually mints the key.
-  const cpUrl = scriptId ? (window.location.origin + "/checkpoint/" + scriptId + "/custom-complete") : "";
+  const cpUrl = scriptId ? (window.location.origin + "/checkpoint/" + scriptId + "/custom-complete") : "Select a script above first to get your link";
   const customUrl = document.getElementById("customCheckpointUrl");
   if (customUrl) customUrl.textContent = cpUrl;
   // Show/hide the custom link row based on selection
@@ -2026,16 +2027,16 @@ async function loadKeyList(scriptId) {
           <span>Uses: ${k.uses||0}</span>
           <span>First used: ${firstStr}</span>
           <span>Expires: ${expStr}</span>
-          <span>Created by: <strong style="color:rgba(255,255,255,0.6)">${createdBy}</strong></span>
-          ${k.note&&k.note!=="auto:checkpoint"?`<span>Note: ${k.note}</span>`:""}
+          <span>Created by: <strong style="color:rgba(255,255,255,0.6)">${esc(createdBy)}</strong></span>
+          ${k.note&&k.note!=="auto:checkpoint"?`<span>Note: ${esc(k.note)}</span>`:""}
         </div>
         ${hwids.length ? `<div style="margin-bottom:8px;">
           <div style="font-size:10px;letter-spacing:1px;color:rgba(0,245,255,0.5);margin-bottom:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>HWID${hwids.length>1?"S":""} REGISTERED</div>
-          ${hwids.map((h,i)=>`<div style="font-size:10px;color:rgba(0,245,255,0.7);background:rgba(0,245,255,0.04);border:1px solid rgba(0,245,255,0.1);border-radius:5px;padding:4px 8px;margin-bottom:3px;word-break:break-all;">Device ${i+1}: ${h}</div>`).join("")}
+          ${hwids.map((h,i)=>`<div style="font-size:10px;color:rgba(0,245,255,0.7);background:rgba(0,245,255,0.04);border:1px solid rgba(0,245,255,0.1);border-radius:5px;padding:4px 8px;margin-bottom:3px;word-break:break-all;">Device ${i+1}: ${esc(h)}</div>`).join("")}
         </div>` : ""}
         ${executors.length ? `<div style="margin-bottom:8px;">
           <div style="font-size:10px;letter-spacing:1px;color:rgba(0,255,136,0.5);margin-bottom:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><line x1="6" x2="10" y1="11" y2="11"/><line x1="8" x2="8" y1="9" y2="13"/><line x1="15" x2="15.01" y1="12" y2="12"/><line x1="18" x2="18.01" y1="10" y2="10"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></svg>EXECUTOR${executors.length>1?"S":""} USED</div>
-          <div style="display:flex;flex-wrap:wrap;gap:5px;">${executors.map(e=>`<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);color:var(--green);">${e}</span>`).join("")}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;">${executors.map(e=>`<span style="font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.15);color:var(--green);">${esc(e)}</span>`).join("")}</div>
         </div>` : ""}
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn-sm btn-view" onclick="navigator.clipboard.writeText('${k.key}').then(()=>toast('Copied!',true,'clipboard'))"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>Copy</button>
@@ -2220,7 +2221,7 @@ async function loadAnalytics() {
       execEl.innerHTML = data.executors.map((e,i)=>`
         <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
           <span style="font-size:11px;color:rgba(255,255,255,0.3);width:16px;">${i+1}</span>
-          <span style="flex:1;font-size:12px;color:#e0e8ff;">${e.name}</span>
+          <span style="flex:1;font-size:12px;color:#e0e8ff;">${esc(e.name)}</span>
           <span style="font-size:11px;color:var(--cyan);">${e.count}</span>
           <div style="width:50px;height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${e.pct}%;background:var(--cyan);border-radius:3px;"></div></div>
         </div>`).join("");
