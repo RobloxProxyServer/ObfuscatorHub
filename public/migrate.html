@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Migration Tool – ObfuscaterHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00f5ff;
+    --pink: #ff2d78;
+    --purple: #7c3aed;
+    --green: #00ff88;
+    --red: #ff4455;
+    --yellow: #ffcc00;
+    --bg: #050508;
+    --card: #0d0d14;
+    --border: rgba(0,245,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: #e0e8ff;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 20s linear infinite;
+    pointer-events: none; z-index: 0;
+  }
+  @keyframes gridMove { to { transform: translateY(40px); } }
+
+  .orb {
+    position: fixed; border-radius: 50%; filter: blur(80px);
+    opacity: 0.1; pointer-events: none; z-index: 0;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+  .orb1 { width: 300px; height: 300px; background: var(--purple); top: -60px; left: -60px; }
+  .orb2 { width: 250px; height: 250px; background: var(--cyan); bottom: -50px; right: -50px; animation-delay: -4s; }
+  @keyframes orbFloat {
+    0%, 100% { transform: translate(0,0); }
+    50% { transform: translate(15px, -15px); }
+  }
+
+  .container {
+    position: relative; z-index: 1;
+    width: 95%; max-width: 660px;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .badge {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; margin-bottom: 8px; font-size: 11px;
+    letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); opacity: 0.6;
+  }
+  .badge::before, .badge::after {
+    content: ''; height: 1px; width: 40px;
+    background: linear-gradient(90deg, transparent, var(--cyan));
+  }
+  .badge::after { transform: scaleX(-1); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--purple), var(--cyan), transparent);
+    animation: scanLine 3s linear infinite;
+  }
+  @keyframes scanLine { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+  .card-corner {
+    position: absolute; width: 16px; height: 16px;
+    border-color: var(--cyan); border-style: solid; opacity: 0.4;
+  }
+  .card-corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+  .card-corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+  .card-corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+  .card-corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+  .header {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .header-icon {
+    font-size: 36px;
+    animation: spin 4s linear infinite;
+    display: inline-block;
+  }
+  @keyframes spin {
+    0% { filter: drop-shadow(0 0 8px var(--cyan)); }
+    50% { filter: drop-shadow(0 0 20px var(--purple)); }
+    100% { filter: drop-shadow(0 0 8px var(--cyan)); }
+  }
+
+  .header-text h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 20px; font-weight: 900; letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .header-text p {
+    font-size: 11px; color: rgba(255,255,255,0.35);
+    letter-spacing: 1px; margin-top: 4px;
+  }
+
+  .btn-start {
+    width: 100%; padding: 16px;
+    border: none; border-radius: 12px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 3px;
+    cursor: pointer; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, var(--cyan), var(--purple), var(--pink));
+    background-size: 200% 200%;
+    color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5);
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: gradShift 4s ease infinite;
+    margin-bottom: 20px;
+  }
+  .btn-start:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,245,255,0.3); }
+  .btn-start:disabled { opacity: 0.45; cursor: not-allowed; animation: none; }
+  @keyframes gradShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    margin-bottom: 16px;
+    display: none;
+  }
+  .progress-wrap.visible { display: block; }
+  .progress-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: rgba(255,255,255,0.4);
+    margin-bottom: 6px;
+  }
+  .progress-track {
+    height: 4px; background: rgba(255,255,255,0.07);
+    border-radius: 4px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 10px var(--cyan);
+  }
+
+  /* Console */
+  .console-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px; font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+  }
+  .console-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-red { background: #ff5f57; }
+  .dot-yellow { background: #febc2e; }
+  .dot-green { background: #28c840; }
+
+  #console {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(0,245,255,0.1);
+    border-radius: 12px;
+    padding: 16px;
+    height: 320px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,245,255,0.2) transparent;
+  }
+  #console::-webkit-scrollbar { width: 4px; }
+  #console::-webkit-scrollbar-track { background: transparent; }
+  #console::-webkit-scrollbar-thumb { background: rgba(0,245,255,0.2); border-radius: 4px; }
+
+  .log-line {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 2px 0;
+    animation: logIn 0.2s ease forwards;
+  }
+  @keyframes logIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-time { color: rgba(255,255,255,0.2); min-width: 50px; }
+  .log-ok .log-msg { color: var(--green); }
+  .log-skip .log-msg { color: rgba(255,255,255,0.4); }
+  .log-fail .log-msg { color: var(--red); }
+  .log-info .log-msg { color: var(--cyan); }
+
+  /* Stats row */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .stat-box {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px; font-weight: 700;
+  }
+  .stat-label { font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 1px; margin-top: 2px; }
+  .stat-ok .stat-num { color: var(--green); }
+  .stat-skip .stat-num { color: rgba(255,255,255,0.4); }
+  .stat-fail .stat-num { color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="container">
+  <div class="badge">ObfuscaterHub</div>
+
+  <div class="card">
+    <div class="card-corner tl"></div>
+    <div class="card-corner tr"></div>
+    <div class="card-corner bl"></div>
+    <div class="card-corner br"></div>
+
+    <div class="header">
+      <span class="header-icon"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <div class="header-text">
+        <h1>Migration Tool</h1>
+        <p>Database migration utility — run with caution</p>
+      </div>
+    </div>
+
+    <button id="btn" class="btn-start" onclick="startMigration()">▶ START MIGRATION</button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label">
+        <span>Processing...</span>
+        <span id="pct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="console-header">
+      <div class="console-dot dot-red"></div>
+      <div class="console-dot dot-yellow"></div>
+      <div class="console-dot dot-green"></div>
+      <span style="margin-left:4px">console output</span>
+    </div>
+
+    <div id="console">
+      <div class="log-line log-info">
+        <span class="log-time">00:00</span>
+        <span class="log-msg">// System ready. Click Start Migration to begin...</span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-box stat-ok">
+        <div class="stat-num" id="statOk">0</div>
+        <div class="stat-label">Migrated</div>
+      </div>
+      <div class="stat-box stat-skip">
+        <div class="stat-num" id="statSkip">0</div>
+        <div class="stat-label">Skipped</div>
+      </div>
+      <div class="stat-box stat-fail">
+        <div class="stat-num" id="statFail">0</div>
+        <div class="stat-label">Failed</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const con = document.getElementById("console");
+const btn = document.getElementById("btn");
+const startTime = Date.now();
+let okCount=0, skipCount=0, failCount=0;
+
+const ICON_CHECK='<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M20 6 9 17l-5-5"/></svg>';
+const ICON_SKIP='<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+const ICON_FAIL='<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>';
+const ICON_REFRESH='<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>';
+
+function getTime(){
+  const s = Math.floor((Date.now()-startTime)/1000);
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+
+function log(msg, type="info"){
+  const line = document.createElement("div");
+  line.className = "log-line log-" + type;
+  line.innerHTML = `<span class="log-time">${getTime()}</span><span class="log-msg">${msg}</span>`;
+  con.appendChild(line);
+  con.scrollTop = con.scrollHeight;
+
+  if(type==='ok') { okCount++; document.getElementById('statOk').textContent = okCount; }
+  if(type==='skip') { skipCount++; document.getElementById('statSkip').textContent = skipCount; }
+  if(type==='fail') { failCount++; document.getElementById('statFail').textContent = failCount; }
+}
+
+async function startMigration(){
+  btn.disabled = true;
+  btn.innerHTML = ICON_REFRESH + "MIGRATING...";
+  con.innerHTML = "";
+  okCount=0; skipCount=0; failCount=0;
+  document.getElementById('statOk').textContent = 0;
+  document.getElementById('statSkip').textContent = 0;
+  document.getElementById('statFail').textContent = 0;
+
+  document.getElementById('progressWrap').classList.add('visible');
+  log("Initializing migration sequence...", "info");
+
+  try {
+    const res = await fetch("/migrate", { method: "POST" });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      const text = decoder.decode(value);
+      const lines = text.split("\n").filter(l => l.trim());
+      for(const line of lines){
+        try {
+          const data = JSON.parse(line);
+          if(data.status === "migrated")
+            log(`${ICON_CHECK}[${data.id}] Migrated → ${data.rawUrl}`, "ok");
+          else if(data.status === "skipped")
+            log(`${ICON_SKIP}[${data.id}] Already migrated, skipping`, "skip");
+          else if(data.status === "failed")
+            log(`${ICON_FAIL}[${data.id}] Failed: ${data.reason || data.error}`, "fail");
+        } catch(e) { log(line, "info"); }
+      }
+    }
+
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('pct').textContent = '100%';
+    log(`${ICON_CHECK}Migration complete! ${okCount} migrated, ${skipCount} skipped, ${failCount} failed.`, "ok");
+
+  } catch(e) {
+    log("Fatal error: " + e.message, "fail");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "▶ RUN AGAIN";
+}
+</script>
+</body>
+</html>

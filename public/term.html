@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Favicon -->
+<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
+<title>Terms of Service – ObfuscaterHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #00f5ff;
+    --pink: #ff2d78;
+    --purple: #7c3aed;
+    --green: #00ff88;
+    --bg: #050508;
+    --card: #0d0d14;
+    --border: rgba(0,245,255,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: #e0e8ff;
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding: 60px 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .orb {
+    position: fixed; border-radius: 50%; filter: blur(100px);
+    opacity: 0.07; pointer-events: none; z-index: 0;
+  }
+  .orb1 { width: 400px; height: 400px; background: var(--cyan); top: -100px; right: -100px; }
+  .orb2 { width: 300px; height: 300px; background: var(--pink); bottom: -100px; left: -100px; }
+
+  .container {
+    position: relative; z-index: 1;
+    max-width: 720px; margin: 0 auto;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .back-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--cyan); opacity: 0.6;
+    text-decoration: none; letter-spacing: 1px;
+    margin-bottom: 32px; transition: opacity 0.2s;
+  }
+  .back-link:hover { opacity: 1; }
+
+  .page-header {
+    margin-bottom: 40px;
+  }
+
+  .page-tag {
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--cyan); opacity: 0.5; margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(24px, 5vw, 36px);
+    font-weight: 900; letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--cyan), var(--pink));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 12px;
+  }
+
+  .last-updated {
+    font-size: 11px; color: rgba(255,255,255,0.25); letter-spacing: 1px;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, var(--cyan), transparent);
+    margin: 32px 0;
+    opacity: 0.2;
+  }
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .section:hover {
+    border-color: rgba(0,245,255,0.3);
+    box-shadow: 0 4px 30px rgba(0,245,255,0.06);
+  }
+
+  .section::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--cyan), transparent);
+  }
+
+  .section-num {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 11px; letter-spacing: 2px;
+    color: var(--cyan); opacity: 0.5;
+    margin-bottom: 8px;
+  }
+
+  .section p {
+    font-size: 14px; line-height: 1.8;
+    color: rgba(255,255,255,0.65);
+  }
+
+  footer {
+    margin-top: 48px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 1px;
+  }
+  footer a { color: var(--cyan); text-decoration: none; opacity: 0.6; }
+  footer a:hover { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="container">
+  <a href="/" class="back-link"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg> Back to Home</a>
+
+  <div class="page-header">
+    <div class="page-tag">// Legal</div>
+    <h1>Terms of Service</h1>
+    <div class="last-updated">Last updated: 2025</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-num">01 // Redistribution</div>
+    <p>You will not redistribute scripts without explicit permission from the original creator. All scripts are protected intellectual property.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">02 // Acceptable Use</div>
+    <p>You will not use this service for malicious purposes, including but not limited to exploitation, unauthorized access, or harm to other users or systems.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">03 // Ownership</div>
+    <p>All scripts remain the property of their respective creators. This service acts solely as a secure storage and obfuscation layer.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">04 // Account Security</div>
+    <p>You are solely responsible for the security of your account credentials and all activity that occurs under your password-protected scripts.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">05 // Modifications</div>
+    <p>We reserve the right to modify these terms at any time. Continued use of the service constitutes acceptance of any updated terms.</p>
+  </div>
+
+  <footer>
+    <p>ObfuscaterHub © 2025 &nbsp;·&nbsp; <a href="/policy">Privacy Policy</a> &nbsp;·&nbsp; <a href="/term">Terms of Service</a></p>
+  </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<title>Admin Console – ObfuscatorHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root{--cyan:#00f5ff;--pink:#ff2d78;--purple:#7c3aed;--green:#00ff88;--red:#ff4455;--yellow:#ffcc00;--bg:#050508;--card:#0d0d14;--border:rgba(0,245,255,0.12);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:#e0e8ff;font-family:'JetBrains Mono',monospace;min-height:100vh;}
+
+header{position:sticky;top:0;z-index:10;background:rgba(5,5,8,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-title{font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;letter-spacing:2px;background:linear-gradient(135deg,var(--cyan),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.brand-sub{font-size:10px;letter-spacing:2px;color:rgba(224,232,255,0.35);text-transform:uppercase;margin-left:2px;}
+
+.armed-pill{display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:8px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;border:1px solid rgba(0,255,136,0.3);color:var(--green);background:rgba(0,255,136,0.06);}
+.armed-dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;}
+.logout-link{font-size:10.5px;color:rgba(224,232,255,0.4);text-decoration:none;letter-spacing:.5px;cursor:pointer;transition:color .2s;}
+.logout-link:hover{color:var(--red);}
+.headright{display:flex;align-items:center;gap:16px;}
+
+main{max-width:1040px;margin:0 auto;padding:28px 24px 60px;}
+.intro{font-size:12px;color:rgba(224,232,255,0.45);line-height:1.7;margin-bottom:26px;max-width:640px;}
+.intro strong{color:var(--cyan);font-weight:600;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+@media (max-width:760px){.grid{grid-template-columns:1fr;}}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:12px;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);opacity:.25;}
+.card.wide{grid-column:1/-1;}
+
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.card-title{font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:1.5px;color:var(--cyan);}
+.card-badge{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:5px;white-space:nowrap;}
+.badge-danger{color:var(--red);background:rgba(255,68,85,0.08);border:1px solid rgba(255,68,85,0.25);}
+.badge-safe{color:var(--green);background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.25);}
+
+.card-desc{font-size:11.5px;color:rgba(224,232,255,0.5);line-height:1.65;}
+.card-desc code{color:var(--cyan);background:rgba(0,245,255,0.07);padding:1px 5px;border-radius:4px;font-size:11px;}
+
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+select{background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:8px;color:#e0e8ff;font-family:'JetBrains Mono',monospace;font-size:11.5px;padding:9px 10px;outline:none;}
+
+button.act{padding:10px 16px;border-radius:9px;border:1px solid rgba(0,245,255,0.2);background:rgba(0,245,255,0.07);color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:7px;}
+button.act:hover:not(:disabled){background:rgba(0,245,255,0.14);border-color:var(--cyan);}
+button.act:disabled{opacity:.4;cursor:not-allowed;}
+button.act.danger{border-color:rgba(255,68,85,0.25);background:rgba(255,68,85,0.06);color:var(--red);}
+button.act.danger:hover:not(:disabled){background:rgba(255,68,85,0.13);}
+button.act.stop{border-color:rgba(255,68,85,0.25);background:rgba(255,68,85,0.06);color:var(--red);}
+
+.log{background:rgba(0,0,0,0.55);border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:11px;line-height:1.65;max-height:220px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;color:rgba(224,232,255,0.65);display:none;}
+.log.show{display:block;}
+.log .ok{color:var(--green);}
+.log .err{color:var(--red);}
+.log .info{color:var(--cyan);}
+.log .skip{color:rgba(224,232,255,0.4);}
+
+.stats-row{display:flex;gap:14px;font-size:10.5px;letter-spacing:.5px;}
+.stats-row span b{font-family:'Orbitron',sans-serif;font-size:14px;display:block;margin-bottom:2px;}
+.stat-ok b{color:var(--green);}
+.stat-skip b{color:rgba(224,232,255,0.5);}
+.stat-fail b{color:var(--red);}
+
+footer{text-align:center;padding:30px 20px;font-size:10.5px;color:rgba(224,232,255,0.25);letter-spacing:.5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div>
+      <div class="brand-title">🛡️ ObfuscatorHub</div>
+      <div class="brand-sub">Admin Console</div>
+    </div>
+  </div>
+  <div class="headright">
+    <div class="armed-pill"><span class="armed-dot"></span>Armed</div>
+    <a class="logout-link" id="logoutLink">Log out</a>
+  </div>
+</header>
+
+<main>
+  <p class="intro">
+    Every action below runs immediately when clicked — there's no confirmation dialog beyond what's shown on the card itself.
+    You're signed in for this session; <strong>Log out</strong> ends it early.
+  </p>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Clean Up Temp Scripts</div>
+        <div class="card-badge badge-danger">Deletes data</div>
+      </div>
+      <div class="card-desc">
+        Removes every document currently sitting in the temporary holding collection (<code>scriptsave</code>).
+        This is normally empty within moments of a script finishing its upload to Rubis — anything still here is either mid-upload right now or permanently stuck.
+        Running this while an upload is in progress will delete that script's temp record before it finishes.
+      </div>
+      <div class="row">
+        <button class="act danger" id="btnCleanup">Run cleanup</button>
+      </div>
+      <div class="log" id="logCleanup"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Log Everyone Out</div>
+        <div class="card-badge badge-danger">Affects all users</div>
+      </div>
+      <div class="card-desc">
+        Wipes every row in the sessions collection. Every logged-in user's <code>sid</code> cookie stops
+        resolving on their next request, so they're all signed out at once. This does <strong style="color:var(--red)">not</strong>
+        affect this admin session — that's a separate cookie.
+      </div>
+      <div class="row">
+        <button class="act danger" id="btnLogoutAll">Log everyone out</button>
+      </div>
+      <div class="log" id="logLogoutAll"></div>
+    </div>
+
+    <div class="card wide">
+      <div class="card-head">
+        <div class="card-title">View Script by ID</div>
+        <div class="card-badge badge-safe">Read-only</div>
+      </div>
+      <div class="card-desc">
+        Looks up a script by its <code>scriptId</code> — permanent collection first, then the temp holding
+        collection — and pulls the real code (from Rubis, inline temp storage, or legacy GitHub), bypassing
+        the password gate entirely.
+      </div>
+      <div class="row">
+        <input type="text" id="viewScriptId" placeholder="scriptId" style="background:rgba(0,0,0,0.5);border:1px solid var(--border);border-radius:8px;color:#e0e8ff;font-family:'JetBrains Mono',monospace;font-size:11.5px;padding:9px 10px;outline:none;flex:1;min-width:180px;">
+        <button class="act" id="btnViewScript">View</button>
+      </div>
+      <div class="log" id="logViewScript"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Clean Up Dead Keys</div>
+        <div class="card-badge badge-safe">Safe to run anytime</div>
+      </div>
+      <div class="card-desc">
+        Removes key documents that are genuinely done: revoked more than 90 days ago, or generated but never redeemed in 90 days.
+        Keys still counting down, still unrevoked, or explicitly set to never expire are never touched.
+      </div>
+      <div class="row">
+        <button class="act" id="btnCleanupKeys">Run cleanup</button>
+      </div>
+      <div class="log" id="logCleanupKeys"></div>
+    </div>
+
+    <div class="card wide">
+      <div class="card-head">
+        <div class="card-title">Migrate Stuck Temp Scripts → Rubis</div>
+        <div class="card-badge badge-safe">Safe to run anytime</div>
+      </div>
+      <div class="card-desc">
+        Finds any script still sitting in the temp collection without a permanent Rubis record, and uploads it now.
+        Already-migrated scripts are skipped automatically — this is safe to run repeatedly.
+      </div>
+      <div class="row">
+        <button class="act" id="btnMigrateTemp">Start migration</button>
+      </div>
+      <div class="log" id="logMigrateTemp"></div>
+    </div>
+
+    <div class="card wide">
+      <div class="card-head">
+        <div class="card-title">Migrate Legacy GitHub Data → MongoDB</div>
+        <div class="card-badge badge-safe">One-time / re-runnable</div>
+      </div>
+      <div class="card-desc">
+        Pulls anything still left in the old GitHub-backed storage (script records with a <code>fileName</code>, and user accounts/index from the old USERDATA repo) into MongoDB.
+        Already-migrated records are detected and skipped, so this is safe to re-run if it was interrupted. Requires <code>GITHUB_TOKEN</code> to be set.
+      </div>
+      <div class="row">
+        <select id="migrateType">
+          <option value="all">Everything (scripts + users)</option>
+          <option value="scripts">Scripts only</option>
+          <option value="users">Users only</option>
+        </select>
+        <button class="act" id="btnMigrateUsers">Start migration</button>
+        <button class="act stop" id="btnStopMigrateUsers" style="display:none;">Stop</button>
+      </div>
+      <div class="stats-row" id="migrateStats" style="display:none;">
+        <span class="stat-ok">Migrated<b id="statMigrated">0</b></span>
+        <span class="stat-skip">Skipped<b id="statSkipped">0</b></span>
+        <span class="stat-fail">Failed<b id="statFailed">0</b></span>
+      </div>
+      <div class="log" id="logMigrateUsers"></div>
+    </div>
+
+  </div>
+</main>
+
+<footer>Session cookie only — nothing is ever stored in this page's own memory or the URL.</footer>
+
+<script>
+function log(elId, msg, cls){
+  const el = document.getElementById(elId);
+  el.classList.add('show');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog(elId){
+  const el = document.getElementById(elId);
+  el.innerHTML = '';
+  el.classList.remove('show');
+}
+
+// If a session cookie ever expires mid-use, every route below returns 403 —
+// bounce back to /admin, which will render the login gate again since the
+// cookie's no longer valid server-side.
+function handleAuthFailure(){
+  location.href = '/admin';
+}
+
+async function callAdmin(action, logId, btn){
+  clearLog(logId);
+  btn.disabled = true;
+  try {
+    const res = await fetch('/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (res.status === 403){ handleAuthFailure(); return; }
+    const data = await res.json();
+    if (!data.ok){
+      log(logId, '❌ ' + (data.error || 'Failed.'), 'err');
+      return;
+    }
+    return data;
+  } catch(e){
+    log(logId, '❌ Request failed: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Clean up temp scripts ──────────────────────────────────────────────────
+document.getElementById('btnCleanup').addEventListener('click', async () => {
+  const btn = document.getElementById('btnCleanup');
+  const data = await callAdmin('cleanup', 'logCleanup', btn);
+  if (data) log('logCleanup', `✅ Deleted ${data.deleted} temp document(s).`, 'ok');
+});
+
+// ── Log everyone out ───────────────────────────────────────────────────────
+document.getElementById('btnLogoutAll').addEventListener('click', async () => {
+  if (!confirm('This will sign out every logged-in user immediately. Continue?')) return;
+  const btn = document.getElementById('btnLogoutAll');
+  const data = await callAdmin('logout-all', 'logLogoutAll', btn);
+  if (data) log('logLogoutAll', `✅ Cleared ${data.deleted} session(s). Every user is now logged out.`, 'ok');
+});
+
+// ── View script by ID ────────────────────────────────────────────────────
+document.getElementById('btnViewScript').addEventListener('click', async () => {
+  const logId = 'logViewScript';
+  const btn = document.getElementById('btnViewScript');
+  const scriptId = document.getElementById('viewScriptId').value.trim();
+  clearLog(logId);
+  if (!scriptId) { log(logId, '❌ Enter a scriptId first.', 'err'); return; }
+  btn.disabled = true;
+  try {
+    const res = await fetch('/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'view-script', scriptId })
+    });
+    if (res.status === 403){ handleAuthFailure(); return; }
+    const data = await res.json();
+    if (!data.ok){ log(logId, '❌ ' + (data.error || 'Failed.'), 'err'); return; }
+    log(logId, `id: ${data.id}`, 'info');
+    log(logId, `location: ${data.location}`, 'info');
+    log(logId, `owner: ${data.owner ? (data.owner.username || data.owner.userId) + (data.owner.email ? ' <' + data.owner.email + '>' : '') : '(none)'}`, 'info');
+    log(logId, `password: ${data.password || '(none)'}`, 'info');
+    log(logId, `createdAt: ${data.createdAt || '(unknown)'}`, 'info');
+    log(logId, `scrapID: ${data.scrapID || '(none)'}`, 'info');
+    log(logId, '── collaborators ─────────────', 'skip');
+    if (data.collaborators && data.collaborators.length) {
+      data.collaborators.forEach(c => {
+        log(logId, `${c.email} [${c.claimed ? 'claimed' : 'pending'}] — ${c.permissions.join(', ')}`, 'info');
+      });
+    } else {
+      log(logId, '(no collaborators)', 'info');
+    }
+    log(logId, '── recent grant history ──────', 'skip');
+    if (data.collabAudit && data.collabAudit.length) {
+      data.collabAudit.forEach(a => {
+        const when = a.at ? new Date(a.at).toLocaleString() : '(unknown time)';
+        log(logId, `${when} — ${a.action} — ${a.email}${a.permissions.length ? ' (' + a.permissions.join(', ') + ')' : ''}`, 'info');
+      });
+    } else {
+      log(logId, '(no history)', 'info');
+    }
+    log(logId, '── code ──────────────────────', 'skip');
+    log(logId, data.code !== null && data.code !== undefined ? data.code : '(could not retrieve code)', data.code ? 'ok' : 'err');
+  } catch(e) {
+    log(logId, '❌ Request failed: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Clean up dead keys ───────────────────────────────────────────────────
+document.getElementById('btnCleanupKeys').addEventListener('click', async () => {
+  const btn = document.getElementById('btnCleanupKeys');
+  const data = await callAdmin('cleanup-keys', 'logCleanupKeys', btn);
+  if (data) log('logCleanupKeys', `✅ Removed ${data.deletedRevoked} revoked and ${data.deletedAbandoned} abandoned key(s).`, 'ok');
+});
+
+// ── Migrate stuck temp scripts → Rubis (chunked plain-text/JSON-lines) ─────
+document.getElementById('btnMigrateTemp').addEventListener('click', async () => {
+  const logId = 'logMigrateTemp';
+  const btn = document.getElementById('btnMigrateTemp');
+  clearLog(logId);
+  btn.disabled = true;
+  try {
+    const res = await fetch('/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'migrate-temp' })
+    });
+    if (res.status === 403){ handleAuthFailure(); return; }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true){
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream:true });
+      let idx;
+      while ((idx = buf.indexOf('\n')) >= 0){
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx+1);
+        if (!line) continue;
+        try {
+          const obj = JSON.parse(line);
+          const cls = obj.status === 'migrated' ? 'ok' : obj.status === 'skipped' ? 'skip' : 'err';
+          log(logId, `${obj.id}: ${obj.status}${obj.error ? ' — ' + obj.error : ''}`, cls);
+        } catch {
+          log(logId, line, 'info');
+        }
+      }
+    }
+  } catch(e){
+    log(logId, '❌ Request failed: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Migrate legacy GitHub data → MongoDB (SSE, cookie-authenticated) ───────
+let es = null;
+document.getElementById('btnMigrateUsers').addEventListener('click', () => {
+  const logId = 'logMigrateUsers';
+  const btn = document.getElementById('btnMigrateUsers');
+  const stopBtn = document.getElementById('btnStopMigrateUsers');
+  if (es){ log(logId, '⚠️ Already running.', 'err'); return; }
+
+  clearLog(logId);
+  const type = document.getElementById('migrateType').value;
+  let migrated = 0, skipped = 0, failed = 0;
+  document.getElementById('statMigrated').textContent = '0';
+  document.getElementById('statSkipped').textContent = '0';
+  document.getElementById('statFailed').textContent = '0';
+  document.getElementById('migrateStats').style.display = 'flex';
+  btn.disabled = true;
+  stopBtn.style.display = 'inline-flex';
+
+  // No token exchange needed — EventSource sends the admin_session cookie
+  // automatically, just like any other same-origin request.
+  es = new EventSource('/admin/migrate-users/run?type=' + type);
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.done){ log(logId, '✅ Migration complete.', 'ok'); resetMigrateUsers(); return; }
+    if (d.info){ log(logId, 'ℹ ' + d.info, 'info'); return; }
+    const label = d.id || d.userId;
+    if (d.status === 'migrated'){ migrated++; document.getElementById('statMigrated').textContent = migrated; log(logId, `✅ ${label} migrated${d.scrapID ? ' → ' + d.scrapID : ''}`, 'ok'); }
+    else if (d.status === 'skipped'){ skipped++; document.getElementById('statSkipped').textContent = skipped; log(logId, `⏭️ ${label} skipped`, 'skip'); }
+    else if (d.status === 'failed'){ failed++; document.getElementById('statFailed').textContent = failed; log(logId, `❌ ${label} failed: ${d.error || 'unknown error'}`, 'err'); }
+  };
+  es.onerror = () => {
+    log(logId, '❌ Connection lost, session expired, or server error.', 'err');
+    resetMigrateUsers();
+  };
+});
+
+function resetMigrateUsers(){
+  if (es){ es.close(); es = null; }
+  document.getElementById('btnMigrateUsers').disabled = false;
+  document.getElementById('btnStopMigrateUsers').style.display = 'none';
+}
+document.getElementById('btnStopMigrateUsers').addEventListener('click', () => {
+  log('logMigrateUsers', '⏹ Stopped by user.', 'info');
+  resetMigrateUsers();
+});
+
+// ── Logout ──────────────────────────────────────────────────────────────
+document.getElementById('logoutLink').addEventListener('click', async () => {
+  await fetch('/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'logout' })
+  });
+  location.href = '/admin';
+});
+</script>
+</body>
+</html>

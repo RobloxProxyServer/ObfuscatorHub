@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ObfuscatorHub — Human Verification</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+<style>
+:root{--cyan:#00f5ff;--pink:#ff2d78;--purple:#7c3aed;--green:#00ff88;--red:#ff4455;--bg:#050508;--card:#0d0d14;--border:rgba(0,245,255,0.13);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:#e0e8ff;font-family:'JetBrains Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-x:hidden;padding:20px;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.025) 1px,transparent 1px);background-size:40px 40px;animation:gridMove 20s linear infinite;pointer-events:none;z-index:0;}
+@keyframes gridMove{to{transform:translateY(40px);}}
+.orb{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.1;pointer-events:none;z-index:0;animation:orbFloat 8s ease-in-out infinite;}
+.orb1{width:400px;height:400px;background:var(--cyan);top:-100px;left:-80px;}
+.orb2{width:300px;height:300px;background:var(--pink);bottom:-80px;right:-60px;animation-delay:-4s;}
+@keyframes orbFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(15px,-15px)}}
+.wrap{position:relative;z-index:1;width:100%;max-width:460px;animation:fadeUp 0.5s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.brand{font-family:'Orbitron',sans-serif;font-size:12px;font-weight:900;letter-spacing:3px;background:linear-gradient(135deg,var(--cyan),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-align:center;margin-bottom:10px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:34px 28px;position:relative;overflow:hidden;text-align:center;}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),var(--pink),transparent);animation:scan 3s linear infinite;}
+@keyframes scan{0%,100%{opacity:0.4}50%{opacity:1}}
+.icon{font-size:44px;margin-bottom:12px;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{filter:drop-shadow(0 0 6px var(--cyan))}50%{filter:drop-shadow(0 0 18px var(--cyan))}}
+.title{font-family:'Orbitron',sans-serif;font-size:19px;font-weight:900;letter-spacing:2px;margin-bottom:8px;background:linear-gradient(135deg,var(--cyan),var(--pink));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.sub{font-size:12px;color:rgba(255,255,255,0.4);line-height:1.8;margin-bottom:22px;}
+.captcha-wrap{margin:14px 0;display:flex;justify-content:center;}
+.gen-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 28px;border-radius:12px;font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;cursor:pointer;border:none;background:linear-gradient(135deg,var(--green),var(--cyan));color:#000;margin-top:6px;transition:transform 0.2s;}
+.gen-btn:hover{transform:translateY(-1px);}
+.gen-btn:disabled{opacity:0.4;cursor:not-allowed;animation:none;}
+.msg{font-size:12px;margin-top:10px;min-height:18px;}
+.err-title{font-family:'Orbitron',sans-serif;font-size:16px;color:var(--red);margin-bottom:10px;letter-spacing:2px;}
+.back-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:10px;font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;border:1px solid rgba(255,68,85,0.25);background:rgba(255,68,85,0.12);color:var(--red);text-decoration:none;margin-top:12px;}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div><div class="orb orb2"></div>
+<div class="wrap">
+  <div class="brand">🛡️ ObfuscatorHub</div>
+  <div class="card" id="card">
+    <div class="icon">🛡️</div>
+    <div class="title">Human Verification</div>
+    <p class="sub">Complete the captcha below and click Verify to continue — you'll be sent back automatically.</p>
+    <div class="captcha-wrap">
+      <div class="h-captcha" data-sitekey="{{HCAPTCHA_SITEKEY}}" data-theme="dark" data-callback="onCaptchaDone"></div>
+    </div>
+    <button id="verifyBtn" class="gen-btn" disabled onclick="doVerify()">✅ Verify</button>
+    <div id="verifyMsg" class="msg"></div>
+  </div>
+</div>
+<script>
+// The hash lives in the URL path itself (/verify/<hash>) — no need for the
+// server to inject it into the page.
+const HASH = window.location.pathname.split("/").filter(Boolean).pop();
+
+let _captchaToken = null;
+function onCaptchaDone(t) {
+  _captchaToken = t;
+  const b = document.getElementById("verifyBtn");
+  if (b) b.disabled = false;
+}
+
+async function doVerify() {
+  const b = document.getElementById("verifyBtn"), m = document.getElementById("verifyMsg");
+  if (!_captchaToken) { m.style.color = "var(--red)"; m.textContent = "Complete the captcha first."; return; }
+  b.disabled = true; b.textContent = "⏳ Verifying...";
+  try {
+    const r = await fetch("/verify/" + HASH, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "h-captcha-response": _captchaToken })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      m.style.color = "var(--green)";
+      m.textContent = "✅ Verified! Redirecting...";
+      window.location = d.redirect;
+    } else {
+      m.style.color = "var(--red)";
+      m.textContent = "❌ " + (d.error || "Verification failed");
+      b.disabled = false; b.textContent = "✅ Verify";
+    }
+  } catch (e) {
+    m.style.color = "var(--red)";
+    m.textContent = "Network error.";
+    b.disabled = false; b.textContent = "✅ Verify";
+  }
+}
+</script>
+</body>
+</html>

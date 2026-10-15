@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Script Ready – ObfuscatorHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --cyan:#00f5ff;--pink:#ff2d78;--purple:#7c3aed;--green:#00ff88;--bg:#050508;--card:#0d0d14;--border:rgba(0,245,255,0.15); }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:#e0e8ff;font-family:'JetBrains Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.025) 1px,transparent 1px);background-size:40px 40px;animation:gridMove 20s linear infinite;pointer-events:none;z-index:0;}
+  @keyframes gridMove{to{transform:translateY(40px);}}
+  .orb{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.12;pointer-events:none;z-index:0;animation:orbFloat 8s ease-in-out infinite;}
+  .orb1{width:350px;height:350px;background:var(--green);top:-80px;left:-80px;}
+  .orb2{width:250px;height:250px;background:var(--cyan);bottom:-60px;right:-60px;animation-delay:-4s;}
+  @keyframes orbFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(15px,-15px)}}
+  .container{position:relative;z-index:1;width:95%;max-width:540px;animation:fadeUp 0.6s ease forwards;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+  .badge{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--green);opacity:0.7;}
+  .badge::before,.badge::after{content:'';height:1px;width:40px;background:linear-gradient(90deg,transparent,var(--green));}
+  .badge::after{transform:scaleX(-1);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;position:relative;overflow:hidden;}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),var(--cyan),transparent);animation:scanLine 3s linear infinite;}
+  @keyframes scanLine{0%,100%{opacity:0.4}50%{opacity:1}}
+  .card-corner{position:absolute;width:16px;height:16px;border-color:var(--green);border-style:solid;opacity:0.4;}
+  .card-corner.tl{top:12px;left:12px;border-width:2px 0 0 2px}.card-corner.tr{top:12px;right:12px;border-width:2px 2px 0 0}.card-corner.bl{bottom:12px;left:12px;border-width:0 0 2px 2px}.card-corner.br{bottom:12px;right:12px;border-width:0 2px 2px 0}
+  .success-icon{text-align:center;font-size:48px;margin-bottom:14px;animation:successPop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards;}
+  @keyframes successPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+  h1{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;text-align:center;letter-spacing:2px;margin-bottom:6px;background:linear-gradient(135deg,var(--green),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .subtitle{text-align:center;font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:2px;text-transform:uppercase;margin-bottom:28px;}
+  .info-row{display:flex;align-items:center;gap:8px;padding:10px 14px;margin-bottom:10px;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.12);border-radius:10px;font-size:12px;}
+  .info-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+  .dot-green{background:var(--green);box-shadow:0 0 8px var(--green);}
+  .info-label{color:rgba(255,255,255,0.35);min-width:70px;}
+  .info-val{color:var(--green);word-break:break-all;}
+  .field-label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);opacity:0.6;margin-bottom:8px;margin-top:20px;}
+  textarea{width:100%;height:100px;background:rgba(0,0,0,0.6);border:1px solid rgba(0,255,136,0.2);border-radius:10px;color:var(--green);font-family:'JetBrains Mono',monospace;font-size:12px;padding:14px;resize:none;outline:none;line-height:1.6;}
+  .btn-copy{width:100%;margin-top:14px;padding:15px;border:none;border-radius:12px;font-family:'Orbitron',sans-serif;font-size:13px;font-weight:900;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,var(--green),var(--cyan),var(--purple));background-size:200% 200%;color:#000;transition:transform 0.2s,box-shadow 0.2s;animation:gradShift 4s ease infinite;}
+  .btn-copy:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,255,136,0.3);}
+  @keyframes gradShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .btn-home{display:block;width:100%;margin-top:10px;padding:13px;border:1px solid rgba(0,245,255,0.2);border-radius:12px;background:transparent;color:var(--cyan);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;letter-spacing:1px;cursor:pointer;text-align:center;text-decoration:none;transition:all 0.25s;}
+  .btn-home:hover{background:rgba(0,245,255,0.07);box-shadow:0 0 20px rgba(0,245,255,0.1);}
+  .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:20px 0;}
+  .tip{font-size:11px;color:rgba(255,255,255,0.25);text-align:center;letter-spacing:0.5px;line-height:1.7;}
+  .tip span{color:var(--cyan);opacity:0.7;}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div><div class="orb orb2"></div>
+<div class="container">
+  <div class="badge">ObfuscatorHub</div>
+  <div class="card">
+    <div class="card-corner tl"></div><div class="card-corner tr"></div>
+    <div class="card-corner bl"></div><div class="card-corner br"></div>
+    <div class="success-icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--green)"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <h1>Script Protected!</h1>
+    <div class="subtitle">Your script is encrypted &amp; ready</div>
+    <div class="info-row"><div class="info-dot dot-green"></div><span class="info-label">Script ID</span><span class="info-val">{{SID}}</span></div>
+    <div class="info-row"><div class="info-dot dot-green"></div><span class="info-label">Status</span><span class="info-val">Protected &amp; Live</span></div>
+    <div class="field-label">// Loadstring — Paste into your executor</div>
+    <textarea id="loaderCode" readonly spellcheck="false">{{LOADER_CODE}}</textarea>
+    <button class="btn-copy" onclick="copyLoader(this)"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>COPY LOADSTRING</button>
+    <a href="/" class="btn-home">← Protect Another Script</a>
+    <div class="divider"></div>
+    <div class="tip">Paste the loadstring into your Roblox executor.<br><span>View or edit your script at /{{SID}}</span></div>
+  </div>
+</div>
+<script>
+const ZAP_ICON='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>';
+const CHECK_ICON='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:6px"><path d="M20 6 9 17l-5-5"/></svg>';
+function copyLoader(btn){navigator.clipboard.writeText(document.getElementById('loaderCode').value).then(()=>{btn.innerHTML=CHECK_ICON+'COPIED!';setTimeout(()=>{btn.innerHTML=ZAP_ICON+'COPY LOADSTRING';},2000);});}
+document.getElementById('loaderCode').addEventListener('click',function(){this.select();});
+</script>
+</body>
+</html>

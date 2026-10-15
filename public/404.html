@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<title>Script Not Found – ObfuscatorHub</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--cyan:#00f5ff;--pink:#ff2d78;--purple:#7c3aed;--green:#00ff88;--red:#ff4455;--bg:#050508;--card:#0d0d14;--border:rgba(0,245,255,0.13);}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:#e0e8ff;font-family:'JetBrains Mono',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.02) 1px,transparent 1px);background-size:40px 40px;animation:gridMove 20s linear infinite;pointer-events:none;z-index:0;}
+  @keyframes gridMove{to{transform:translateY(40px);}}
+  .orb{position:fixed;border-radius:50%;filter:blur(80px);opacity:0.08;pointer-events:none;z-index:0;animation:orbFloat 8s ease-in-out infinite;}
+  .orb1{width:400px;height:400px;background:var(--red);top:-100px;left:-100px;}
+  .orb2{width:300px;height:300px;background:var(--purple);bottom:-80px;right:-80px;animation-delay:-4s;}
+  @keyframes orbFloat{0%,100%{transform:translate(0,0)}50%{transform:translate(20px,-20px)}}
+
+  .container{position:relative;z-index:1;text-align:center;padding:20px;max-width:520px;animation:fadeUp 0.6s ease forwards;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+  .glitch-wrap{position:relative;margin-bottom:16px;}
+  .code-404{font-family:'Orbitron',sans-serif;font-size:clamp(80px,18vw,130px);font-weight:900;line-height:1;
+    background:linear-gradient(135deg,var(--red),var(--pink));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+    animation:glitch 3s ease-in-out infinite;position:relative;}
+  .code-404::before,.code-404::after{
+    content:'404';position:absolute;top:0;left:0;right:0;
+    font-family:'Orbitron',sans-serif;font-size:clamp(80px,18vw,130px);font-weight:900;line-height:1;
+    -webkit-text-fill-color:transparent;color:transparent;
+  }
+  .code-404::before{background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;background-clip:text;animation:glitchTop 3s ease-in-out infinite;clip-path:polygon(0 0,100% 0,100% 35%,0 35%);}
+  .code-404::after{background:linear-gradient(135deg,var(--pink),var(--red));-webkit-background-clip:text;background-clip:text;animation:glitchBot 3s ease-in-out infinite;clip-path:polygon(0 65%,100% 65%,100% 100%,0 100%);}
+
+  @keyframes glitch{0%,90%,100%{transform:translate(0)}91%{transform:translate(-3px,1px)}93%{transform:translate(3px,-1px)}95%{transform:translate(-1px,2px)}97%{transform:translate(1px,-1px)}}
+  @keyframes glitchTop{0%,90%,100%{transform:translate(0)}91%{transform:translate(4px,-2px)}93%{transform:translate(-4px,2px)}95%,97%{transform:translate(0)}}
+  @keyframes glitchBot{0%,90%,100%{transform:translate(0)}92%{transform:translate(-3px,2px)}94%{transform:translate(3px,-2px)}96%,98%{transform:translate(0)}}
+
+  .icon{font-size:48px;margin-bottom:16px;animation:iconPulse 2s ease-in-out infinite;}
+  @keyframes iconPulse{0%,100%{filter:drop-shadow(0 0 8px var(--red))}50%{filter:drop-shadow(0 0 24px var(--red))}}
+
+  h2{font-family:'Orbitron',sans-serif;font-size:clamp(16px,4vw,22px);font-weight:900;letter-spacing:2px;margin-bottom:10px;color:#e0e8ff;}
+  .sub{font-size:13px;color:rgba(255,255,255,0.4);line-height:1.8;margin-bottom:32px;max-width:400px;margin-left:auto;margin-right:auto;}
+
+  .card{background:var(--card);border:1px solid rgba(255,68,85,0.2);border-radius:16px;padding:20px 24px;margin-bottom:24px;position:relative;overflow:hidden;}
+  .card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--red),transparent);opacity:0.5;}
+  .card-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--red);opacity:0.7;margin-bottom:10px;}
+  .reason-list{display:flex;flex-direction:column;gap:8px;text-align:left;}
+  .reason{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.6;}
+  .reason-dot{width:5px;height:5px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:6px;opacity:0.7;}
+
+  .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .btn-home{padding:13px 28px;border:none;border-radius:10px;cursor:pointer;font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;letter-spacing:2px;text-decoration:none;background:linear-gradient(135deg,var(--cyan),var(--pink));color:#fff;transition:transform 0.2s,box-shadow 0.2s;display:inline-flex;align-items:center;gap:8px;}
+  .btn-home:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,245,255,0.3);}
+  .btn-discord{padding:13px 28px;border:1px solid rgba(88,101,242,0.3);border-radius:10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;letter-spacing:1px;text-decoration:none;background:rgba(88,101,242,0.1);color:#bac0ff;transition:all 0.2s;display:inline-flex;align-items:center;gap:8px;}
+  .btn-discord:hover{background:rgba(88,101,242,0.2);border-color:rgba(88,101,242,0.5);}
+
+  .scan-line{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);animation:scanDown 4s linear infinite;opacity:0.3;}
+  @keyframes scanDown{from{top:0}to{top:100%}}
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="scan-line"></div>
+
+<div class="container">
+  <div class="glitch-wrap">
+    <div class="code-404">404</div>
+  </div>
+
+  <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg></div>
+  <h2>Script Not Found</h2>
+  <p class="sub">The script you're looking for doesn't exist or has been permanently deleted by its owner.</p>
+
+  <div class="card">
+    <div class="card-label">// Possible Reasons</div>
+    <div class="reason-list">
+      <div class="reason"><div class="reason-dot"></div>The script ID in the URL is incorrect or misspelled</div>
+      <div class="reason"><div class="reason-dot"></div>The owner deleted this script from their dashboard</div>
+      <div class="reason"><div class="reason-dot"></div>The link you followed is outdated or broken</div>
+      <div class="reason"><div class="reason-dot"></div>The script was never created at this URL</div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <a href="/" class="btn-home"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg> Go Home</a>
+    <a href="https://discord.gg/98rpEqUeut" target="_blank" class="btn-discord">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.031.053a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      Get Help
+    </a>
+  </div>
+</div>
+</body>
+</html>
+
