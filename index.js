@@ -3436,7 +3436,7 @@ async function obfuscateWithFallback(source) {
 
 const PROMETHEUS_SERVERS = [
     "https://prometheus-obfuscator-production-a13c.up.railway.app/api/obfuscate",
-    "https://prometheus-obfuscator-production-774f.up.railway.app/api/obfuscate",
+    "https://proth-production-3b4c.up.railway.app/api/obfuscate",
     "https://proth-production.up.railway.app/api/obfuscate"
 ];
 const PROMETHEUS_PRESET = "Ultra";
