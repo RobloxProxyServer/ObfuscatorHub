@@ -3025,7 +3025,7 @@ app.post("/api/verify-key", async (req, res) => {
 
     const execId2 = crypto.randomBytes(8).toString("hex");
     const token2  = generateToken();
-    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 2000);
+    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 5000);
 
     const shell = buildAntiHookShell(req.headers.host, scriptId, execId2, token2);
 
@@ -3075,7 +3075,7 @@ app.post("/api/check-hwid", async (req, res) => {
 
     const execId2 = crypto.randomBytes(8).toString("hex");
     const token2  = generateToken();
-    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 2000);
+    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 5000);
 
     const shell = buildAntiHookShell(req.headers.host, scriptId, execId2, token2);
 
@@ -3447,29 +3447,67 @@ const PROMETHEUS_SERVERS = [
 const PROMETHEUS_PRESET = "Ultra";
 let prometheusIndex = 0; // rotates after each success so load is spread across the servers
 
+// Picks a different starting server each call (round robin), so the 4 servers
+// get roughly equal load over time. Instead of trying them one-by-one and
+// waiting out each server's full timeout before moving on (which is what made
+// this take 20+ seconds when the first pick was slow or down), it fires the
+// starting server immediately and, if it hasn't answered within STAGGER_MS,
+// fires the next one too — in parallel, not instead of it. Whichever answers
+// first wins and the rest are aborted, so a slow/dead server costs at most
+// one stagger window instead of its whole timeout.
 async function obfuscateWithPrometheus(source) {
     const start = prometheusIndex;
-    let lastErr = null;
-    for (let i = 0; i < PROMETHEUS_SERVERS.length; i++) {
-        const idx = (start + i) % PROMETHEUS_SERVERS.length;
-        try {
-            const resp = await axios.post(
-                PROMETHEUS_SERVERS[idx],
-                { code: source, preset: PROMETHEUS_PRESET },
-                { timeout: 30000, maxBodyLength: Infinity, maxContentLength: Infinity }
-            );
+    const order = PROMETHEUS_SERVERS.map((_, i) => (start + i) % PROMETHEUS_SERVERS.length);
+    prometheusIndex = (start + 1) % PROMETHEUS_SERVERS.length; // next call starts on the next server either way
+
+    const STAGGER_MS = 1500;     // how long one server gets to answer alone before the next is also fired
+    const PER_TRY_TIMEOUT = 12000;
+
+    const controllers = [];
+    const timers = [];
+    let settled = false;
+    function cleanup() {
+        settled = true;
+        timers.forEach(t => clearTimeout(t));
+        controllers.forEach(c => c.abort());
+    }
+
+    function attempt(idx) {
+        const controller = new AbortController();
+        controllers.push(controller);
+        return axios.post(
+            PROMETHEUS_SERVERS[idx],
+            { code: source, preset: PROMETHEUS_PRESET },
+            { timeout: PER_TRY_TIMEOUT, maxBodyLength: Infinity, maxContentLength: Infinity, signal: controller.signal }
+        ).then(resp => {
             const d = resp.data || {};
             const out = d.code || d.result || d.obfuscated || d.output;
             if (typeof out !== "string" || !out) throw new Error("empty response");
             assertUsableLua(out, "Prometheus");
-            prometheusIndex = (idx + 1) % PROMETHEUS_SERVERS.length;
             return out;
-        } catch (err) {
-            lastErr = err;
-            console.error(`Prometheus server ${idx} failed:`, err.message);
-        }
+        }).catch(err => {
+            if (!settled) console.error(`Prometheus server ${idx} failed:`, err.message);
+            throw err;
+        });
     }
-    throw new Error("All Prometheus servers failed: " + (lastErr && lastErr.message));
+
+    const tries = order.map((idx, i) => {
+        if (i === 0) return attempt(idx);
+        return new Promise((resolve, reject) => {
+            const t = setTimeout(() => attempt(idx).then(resolve, reject), i * STAGGER_MS);
+            timers.push(t);
+        });
+    });
+
+    try {
+        const out = await Promise.any(tries);
+        cleanup();
+        return out;
+    } catch (aggErr) {
+        cleanup();
+        const msg = aggErr && aggErr.errors ? aggErr.errors.map(e => e.message).join("; ") : (aggErr && aggErr.message);
+        throw new Error("All Prometheus servers failed: " + msg);
+    }
 }
 
 async function newObfuscate(source) {
@@ -4753,7 +4791,7 @@ const PORT = process.env.PORT || 3000;
 
             const execId2 = crypto.randomBytes(8).toString("hex");
             const token2  = generateToken();
-            await execStore.set(execId2, { code, ip, token: token2 }, 2000);
+            await execStore.set(execId2, { code, ip, token: token2 }, 5000);
 
             const protectedCode = `
         if not game or not game.GetService or not (game.IsLoaded and game:IsLoaded()) then return end
@@ -4963,7 +5001,7 @@ const PORT = process.env.PORT || 3000;
 
             const execId2 = crypto.randomBytes(8).toString("hex");
             const token2  = generateToken();
-            await execStore.set(execId2, { code: realCode, ip, token: token2 }, 2000);
+            await execStore.set(execId2, { code: realCode, ip, token: token2 }, 5000);
 
             const protectedCode = `
         if not game or not game.GetService or not (game.IsLoaded and game:IsLoaded()) then return end
