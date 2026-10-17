@@ -90,6 +90,10 @@ const execStore = {
     async delete(execId) {
         if (!execId) return;
         await executionsCol.deleteOne({ execId });
+    },
+    async touch(execId, ttlMs) {
+        if (!execId) return;
+        await executionsCol.updateOne({ execId }, { $set: { expiresAt: new Date(Date.now() + ttlMs) } });
     }
 };
 
@@ -3021,7 +3025,7 @@ app.post("/api/verify-key", async (req, res) => {
 
     const execId2 = crypto.randomBytes(8).toString("hex");
     const token2  = generateToken();
-    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 5000);
+    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 2000);
 
     const shell = buildAntiHookShell(req.headers.host, scriptId, execId2, token2);
 
@@ -3071,7 +3075,7 @@ app.post("/api/check-hwid", async (req, res) => {
 
     const execId2 = crypto.randomBytes(8).toString("hex");
     const token2  = generateToken();
-    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 5000);
+    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 2000);
 
     const shell = buildAntiHookShell(req.headers.host, scriptId, execId2, token2);
 
@@ -3470,17 +3474,11 @@ async function obfuscateWithPrometheus(source) {
 
 async function newObfuscate(source) {
     try {
-        return await obfuscateWithLeakD(source);
-    } catch (err) {
-        console.error("LeakD API failed, trying fallback:", err.message);
-    }
-
-    try {
         const out = await obfuscateWithPrometheus(source);
         console.log("Prometheus obfuscator succeeded.");
         return out;
     } catch (err) {
-        console.error("Prometheus obfuscator failed, trying last fallback:", err.message);
+        console.error("Prometheus obfuscator failed, trying fallback:", err.message);
     }
 
     try {
@@ -4755,7 +4753,7 @@ const PORT = process.env.PORT || 3000;
 
             const execId2 = crypto.randomBytes(8).toString("hex");
             const token2  = generateToken();
-            await execStore.set(execId2, { code, ip, token: token2 }, 5000);
+            await execStore.set(execId2, { code, ip, token: token2 }, 2000);
 
             const protectedCode = `
         if not game or not game.GetService or not (game.IsLoaded and game:IsLoaded()) then return end
@@ -4924,7 +4922,7 @@ const PORT = process.env.PORT || 3000;
 
         _fn2()`;
 
-            await execStore.set(execId, { code: protectedCode, ip, token }, 2500);
+            await execStore.set(execId, { code: protectedCode, ip, token }, 5000);
 
             async function sendObfuscatedLoaderTemp(req, res, execId, token) {
                 const loader = OUTER_ANTI_TAMPER_PREFIX +
@@ -4934,6 +4932,7 @@ const PORT = process.env.PORT || 3000;
                     "local _fn,_err=loadstring(_src)\n" +
                     "if _fn then return _fn() else error(tostring(_err)) end";
                 const obfuscatedLoader = await newObfuscate(loader);
+                await execStore.touch(execId, 5000); // obfuscation can take seconds; restart the one-time window now that the loader is ready
                 return res.type("text/plain").send(obfuscatedLoader || loader);
             }
             return await sendObfuscatedLoaderTemp(req, res, execId, token);
@@ -4964,7 +4963,7 @@ const PORT = process.env.PORT || 3000;
 
             const execId2 = crypto.randomBytes(8).toString("hex");
             const token2  = generateToken();
-            await execStore.set(execId2, { code: realCode, ip, token: token2 }, 5000);
+            await execStore.set(execId2, { code: realCode, ip, token: token2 }, 2000);
 
             const protectedCode = `
         if not game or not game.GetService or not (game.IsLoaded and game:IsLoaded()) then return end
@@ -5134,7 +5133,7 @@ const PORT = process.env.PORT || 3000;
 
         _fn2()`;
 
-            const execTTL = 2500;
+            const execTTL = 5000;
             await execStore.set(execId, { code: protectedCode, ip, token, keySystemPending: !!(s.keySystem && s.keySystem.enabled) }, execTTL);
 
             if (s.keySystem && s.keySystem.enabled) {
@@ -5151,6 +5150,7 @@ const PORT = process.env.PORT || 3000;
                     "local _fn,_err=loadstring(_src)\n" +
                     "if _fn then return _fn() else error(tostring(_err)) end";
                 const obfuscatedLoader = await newObfuscate(loader);
+                await execStore.touch(execId, 5000); // obfuscation can take seconds; restart the one-time window now that the loader is ready
                 return res.type("text/plain").send(obfuscatedLoader || loader);
             }
             return await sendObfuscatedLoader(req, res, execId, token);
