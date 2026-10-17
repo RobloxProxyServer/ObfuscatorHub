@@ -3435,9 +3435,10 @@ async function obfuscateWithFallback(source) {
 }
 
 const PROMETHEUS_SERVERS = [
-    "https://prometheus-obfuscator-production-a13c.up.railway.app/api/obfuscate",
+    "https://proth-production-7b7e.up.railway.app/api/obfuscate",
     "https://proth-production-3b4c.up.railway.app/api/obfuscate",
-    "https://proth-production.up.railway.app/api/obfuscate"
+    "https://proth-production.up.railway.app/api/obfuscate",
+    "https://proth-production-b8b6.up.railway.app/api/obfuscate"
 ];
 const PROMETHEUS_PRESET = "Ultra";
 let prometheusIndex = 0; // rotates after each success so load is spread across the servers
