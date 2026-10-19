@@ -3025,13 +3025,13 @@ app.post("/api/verify-key", async (req, res) => {
 
     const execId2 = crypto.randomBytes(8).toString("hex");
     const token2  = generateToken();
-    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 5000);
+    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 15000);
 
     const shell = buildAntiHookShell(req.headers.host, scriptId, execId2, token2);
 
     const freshExecId = crypto.randomBytes(8).toString("hex");
     const freshToken   = generateToken();
-    await execStore.set(freshExecId, { code: shell, ip: req.ip, token: freshToken }, 2500); // short-lived: used within seconds by the GUI
+    await execStore.set(freshExecId, { code: shell, ip: req.ip, token: freshToken }, 15000); // 15-second window for GUI shell retrieval
 
     res.json({ valid:true, reason:"OK", execId: freshExecId, token: freshToken });
   } catch(e) { res.json({ valid:false, reason:e.message }); }
@@ -3075,13 +3075,13 @@ app.post("/api/check-hwid", async (req, res) => {
 
     const execId2 = crypto.randomBytes(8).toString("hex");
     const token2  = generateToken();
-    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 5000);
+    await execStore.set(execId2, { code: realCode, ip: req.ip, token: token2 }, 15000);
 
     const shell = buildAntiHookShell(req.headers.host, scriptId, execId2, token2);
 
     const freshExecId = crypto.randomBytes(8).toString("hex");
     const freshToken   = generateToken();
-    await execStore.set(freshExecId, { code: shell, ip: req.ip, token: freshToken }, 2500);
+    await execStore.set(freshExecId, { code: shell, ip: req.ip, token: freshToken }, 15000);
 
     if (executor) await keysCollection.updateOne({ key: keyDoc.key, scriptId }, { $addToSet:{ executors:executor }, $inc:{ uses:1 } });
     else await keysCollection.updateOne({ key: keyDoc.key, scriptId }, { $inc:{ uses:1 } });
@@ -3529,6 +3529,10 @@ async function newObfuscate(source) {
     }
 }
 
+function buildRawShell(host, execId, token) {
+    return String.raw`if not game or not game.GetService or not(game.IsLoaded and game:IsLoaded())then return end;local a,b,c=game,pcall,loadstring;local d=(getgenv and getgenv())or _G;if d.__kg_lock then return end;d.__kg_lock=true;local e;local function f(a)if not e then e=true;print("detected: "..tostring(a))end;return true end;local function g(a,...)a=tostring(a):lower()for b,b in ipairs({...})do if a:find(b,1,true)then return true end end end;local function h(a,...)local a,b=b(a,...)if a then return end;b=tostring(b)return b:find("%.lua:%d+")~=nil or b:find('%[string "')~=nil end;local function i()local a={}if listfiles then for c,c in ipairs({"","."})do local b,c=b(listfiles,c)if b and type(c)=="table"then for b,b in ipairs(c)do a[tostring(b):lower()]=true end end end end;return a end;local j=i()local function k()local a={}for b in next,i()do if not j[b]then a[#a+1]=b end end;return a end;local i={function()return loadstring end,function()return a.HttpGet end,function()return a.HttpGetAsync end,function()return a.HttpPost end,function()return a.HttpPostAsync end,function()return request end,function()return http_request end,function()return syn and syn.request end,function()return http and http.request end,function()return fluxus and fluxus.request end,function()return WebSocket and WebSocket.connect end}local j,l={},{}for a,c in ipairs(i)do local b,c=b(c)if b and type(c)=="function"then j[c]=true;l[a]=c end end;local function m(a)return function(b,c)if j[b]then f("hook attempt")return b end;return a(b,c)end end;local n={}if hookfunction then n.hookfunction=m(hookfunction)end;if replaceclosure then n.replaceclosure=m(replaceclosure)end;if hookmetamethod then local a=hookmetamethod;n.hookmetamethod=function(b,c,d)if typeof(b)=="Instance"and(c=="__namecall"or c=="__index")then f("metamethod hook")return function()end end;return a(b,c,d)end end;for a,c in pairs(n)do b(function()_G[a]=c;d[a]=c end)end;local g={function()if loadstring~=c or(iscclosure and not iscclosure(loadstring))or(islclosure and islclosure(loadstring))then return"loadstring"end;if debug and debug.info then local a,b=b(debug.info,loadstring,"s")if a and b and b~="[C]"then return"loadstring src"end end end,function()for a,b in pairs(n)do if d[a]~=b then return"guard replaced: "..a end end end,function()for a,c in ipairs(i)do if l[a]then local b,c=b(c)if b and c~=l[a]then return"fn replaced"end end end;local a=isfunctionhooked or ishooked;if a then for c in next,j do local a,b=b(a,c)if a and b then return"hooked fn"end end end end,function()local b,c,d=l[2],l[6],l[7];if(b and h(b,a,nil))or(c and h(c,nil))or(d and h(d,nil))then return"error leak"end end,function()if not getrawmetatable then return end;local a,c=b(getrawmetatable,a)if not a or type(c)~="table"then return end;local a=isexecutorclosure or checkclosure or is_synapse_function;for d,d in ipairs({"__namecall","__index"})do local c=c[d];if type(c)=="function"then if islclosure and islclosure(c)then return d end;if a then local a,b=b(a,c)if a and b then return d end end end end end,function()local a=d.Config;if type(a)=="table"then for b,b in ipairs({"FormatUrls","SetUrlsToClipboard","SaveOutputToFile","SkipDefaultHeaders","DefaultHeaders"})do if a[b]~=nil then return"spy config"end end end end,function()for a,a in ipairs(k())do if a:match("http_%x+%.log$")or a:match("loadstring%d+%.txt$")or g(a,"intercepted","payload","dumped","captured")then return"new file"end end end}local function h()for a,a in ipairs(g)do local a,b=b(a)if a and b then return f(b)end end;return e end;local e={("PTTH detpecretnI"):reverse(),("yps PTTH"):reverse(),("daolyap_detpecretni"):reverse(),("yllufsseccus devas edoc detcetorP"):reverse()}local function g()local a=(debug and debug.getconstants)or getconstants;if not getgc or not a then return end;local c,d=b(getgc,true)if not c or type(d)~="table"then return end;for c,d in ipairs(d)do if c%4000==0 then task.wait()end;local c=type(d)if c=="function"then if not(iscclosure and iscclosure(d))then local a,b=b(a,d)if a and type(b)=="table"then for a,a in pairs(b)do if type(a)=="string"then for b,b in ipairs(e)do if a:find(b,1,true)then return"memory"end end end end end end elseif c=="table"then if rawget(d,"SetUrlsToClipboard")~=nil or rawget(d,"SkipDefaultHeaders")~=nil then return"memory"end end end end;local function e(a)if not isfile then return end;local c=("_daolyap_detpecretni"):reverse()for a=a-2,a+20 do local a,d=b(os.date,"%Y%m%d_%H%M%S",a)if a then local a,b=b(isfile,c..d..".lua")if a and b then return true end end end end;local function i()local a="kg"..math.random(1e8,9e8)..math.random(1e8,9e8)local d=os.time()local a=c("local a='"..a.."' return a")if a then b(a)end;task.wait(.6)return e(d)and"decoy dump"or#k()>0 and"decoy file"end;local function e(a)if h()then return end;local e;local g={}for a,b in pairs(d)do if type(b)=="function"and b~=c then g[a]=b;d[a]=function(...)e=e or a;return b(...)end end end;local a,b,c=b(c,a)for a,b in pairs(g)do d[a]=b end;if e then f("loadstring side effect: "..e)return end;if not a then error(tostring(b))end;if not b then error(tostring(c))end;if h()then return end;return b end;local function c()if h()then return end;local c=g()if c then f(c)return end;local c=i()if c then f(c)return end;if h()then return end;local c="${token}";local a,b=b(a.HttpGet,a,"https://${host}/raw/${execId}?t="..c)if not a or type(b)~="string"or b==""then error("[raw] returned no valid code")end;local a=e(b)if a then return a()end end;local a,b=b(c)d.__kg_lock=nil;if not a then error(tostring(b))end;return b`;
+}
+
 function buildAntiHookShell(host, genvKey, execId2, token2) {
     return `
         if not game or not game.GetService or not (game.IsLoaded and game:IsLoaded()) then return end
@@ -3670,8 +3674,7 @@ function buildAntiHookShell(host, genvKey, execId2, token2) {
 
         if _checkTamper() then return end
 
-        local _t2   = "${token2}"
-        local _url2 = "https://${host}/raw2/${execId2}?t=".._t2
+        local _url2 = "https://${host}/raw2/${execId2}?t=${token2}"
         local _fetchOk, _src2 = _origPcall(game.HttpGet, game, _url2)
         if not _fetchOk or not _src2 or _src2 == "" then
             error("Failed to load protected script body. Server returned: " .. tostring(_src2))
@@ -4791,7 +4794,7 @@ const PORT = process.env.PORT || 3000;
 
             const execId2 = crypto.randomBytes(8).toString("hex");
             const token2  = generateToken();
-            await execStore.set(execId2, { code, ip, token: token2 }, 5000);
+            await execStore.set(execId2, { code, ip, token: token2 }, 15000);
 
             const protectedCode = `
         if not game or not game.GetService or not (game.IsLoaded and game:IsLoaded()) then return end
@@ -4960,17 +4963,13 @@ const PORT = process.env.PORT || 3000;
 
         _fn2()`;
 
-            await execStore.set(execId, { code: protectedCode, ip, token }, 5000);
+            await execStore.set(execId, { code: protectedCode, ip, token }, 15000);
 
             async function sendObfuscatedLoaderTemp(req, res, execId, token) {
-                const loader = OUTER_ANTI_TAMPER_PREFIX +
-                    "local t=\"" + token + "\"\n" +
-                    "local _src=game:HttpGet(\"https://" + req.headers.host + "/raw/" + execId + "?t=\"..t)\n" +
-                    "if not _src or _src==\"\" or (_src:match(\"^%-%- expired\") or _src:match(\"^%-%- invalid token\") or _src:match(\"^%-%- Request denied\")) then error(\"[raw] returned no valid code: \"..tostring(_src)) end\n" +
-                    "local _fn,_err=loadstring(_src)\n" +
-                    "if _fn then return _fn() else error(tostring(_err)) end";
+                const loader = buildRawShell(req.headers.host, execId, token);
                 const obfuscatedLoader = await newObfuscate(loader);
-                await execStore.touch(execId, 5000); // obfuscation can take seconds; restart the one-time window now that the loader is ready
+                await execStore.touch(execId, 15000); // obfuscation can take seconds; restart the one-time window now that the loader is ready
+                await execStore.touch(execId2, 15000); // restart the paired /raw2 payload window at the same time
                 return res.type("text/plain").send(obfuscatedLoader || loader);
             }
             return await sendObfuscatedLoaderTemp(req, res, execId, token);
@@ -5001,7 +5000,7 @@ const PORT = process.env.PORT || 3000;
 
             const execId2 = crypto.randomBytes(8).toString("hex");
             const token2  = generateToken();
-            await execStore.set(execId2, { code: realCode, ip, token: token2 }, 5000);
+            await execStore.set(execId2, { code: realCode, ip, token: token2 }, 15000);
 
             const protectedCode = `
         if not game or not game.GetService or not (game.IsLoaded and game:IsLoaded()) then return end
@@ -5171,7 +5170,7 @@ const PORT = process.env.PORT || 3000;
 
         _fn2()`;
 
-            const execTTL = 5000;
+            const execTTL = 15000;
             await execStore.set(execId, { code: protectedCode, ip, token, keySystemPending: !!(s.keySystem && s.keySystem.enabled) }, execTTL);
 
             if (s.keySystem && s.keySystem.enabled) {
@@ -5181,14 +5180,10 @@ const PORT = process.env.PORT || 3000;
             }
 
             async function sendObfuscatedLoader(req, res, execId, token) {
-                const loader = OUTER_ANTI_TAMPER_PREFIX +
-                    "local t=\"" + token + "\"\n" +
-                    "local _src=game:HttpGet(\"https://" + req.headers.host + "/raw/" + execId + "?t=\"..t)\n" +
-                    "if not _src or _src==\"\" or (_src:match(\"^%-%- expired\") or _src:match(\"^%-%- invalid token\") or _src:match(\"^%-%- Request denied\")) then error(\"[raw] returned no valid code: \"..tostring(_src)) end\n" +
-                    "local _fn,_err=loadstring(_src)\n" +
-                    "if _fn then return _fn() else error(tostring(_err)) end";
+                const loader = buildRawShell(req.headers.host, execId, token);
                 const obfuscatedLoader = await newObfuscate(loader);
-                await execStore.touch(execId, 5000); // obfuscation can take seconds; restart the one-time window now that the loader is ready
+                await execStore.touch(execId, 15000); // obfuscation can take seconds; restart the one-time window now that the loader is ready
+                await execStore.touch(execId2, 15000); // restart the paired /raw2 payload window at the same time
                 return res.type("text/plain").send(obfuscatedLoader || loader);
             }
             return await sendObfuscatedLoader(req, res, execId, token);
