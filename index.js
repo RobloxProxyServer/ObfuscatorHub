@@ -5398,7 +5398,15 @@ const PORT = process.env.PORT || 3000;
     app.get("/:id", async (req, res) => {
         const ua = req.headers["user-agent"] || "";
         if (ua.includes("Roblox")) return res.status(404).send("-- Not found");
-        const script = await scriptsCollection.findOne({ id: req.params.id });
+        // A freshly created script lives only in tempCollection until its
+        // background Rubis upload finishes and moves it into scriptsCollection
+        // (see queueRubisUpload/processRubisQueue). Checking only
+        // scriptsCollection meant the edit/view link given out right after
+        // creation 404'd for a few seconds, for both auto-generated and
+        // custom paths — this fixes that by falling back to tempCollection,
+        // the same way /unlock already does.
+        const script = await scriptsCollection.findOne({ id: req.params.id })
+            || await tempCollection.findOne({ id: req.params.id });
         res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
         if (!script) return res.status(404).sendFile(path.join(__dirname, "public/404.html"));
         res.sendFile(path.join(__dirname, "public/view.html"));
