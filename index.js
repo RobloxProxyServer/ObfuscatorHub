@@ -1293,9 +1293,20 @@ app.post(["/api/create", "/api/create/"], async (req, res) => {
     if (typeof code !== "string") return res.status(400).json({ ok: false, error: "Invalid code." });
     if (!code || !password) return res.status(400).json({ ok: false });
     { const pwErr = validatePassword(password); if (pwErr) return res.status(400).json({ ok: false, error: pwErr }); }
-    const sid = id();
+    let wantedPath = null;
+    if (req.body.customPath !== undefined && req.body.customPath !== "") {
+        const vp = validateCustomPath(req.body.customPath);
+        if (!vp.ok) return res.status(400).json({ ok: false, error: vp.error });
+        wantedPath = vp.name;
+    }
+    const sid = wantedPath || id();
     const tokens = [generateToken(),generateToken(),generateToken(),generateToken(),generateToken(),generateToken(),generateToken(),generateToken(),generateToken(),generateToken()];
     const host = req.headers.host;
+    if (wantedPath) {
+        if (await scriptIdTaken(wantedPath)) {
+            return res.status(409).json({ ok: false, error: "That custom path is already taken." });
+        }
+    }
     const apiLink = `https://${host}/api/${sid}`;
 
     let prepared;
