@@ -155,6 +155,12 @@ async function initDB() {
         collaboratorsCol     = db.collection("collaborators"); // scriptId+email → permissions[]
         collabAuditCol       = db.collection("collab_audit");  // history of grant/claim/removal events
         hcaptchaCol          = db.collection("hcaptcha_verifications"); // /api/hcaptcha → /verify/:hash
+        discordJoinsCol      = db.collection("discord_guild_joins"); // one row per Discord user who has gone through /auth/discord
+        try {
+            await discordJoinsCol.createIndex({ discordId: 1 }, { unique: true });
+        } catch (e) {
+            console.error("discord_guild_joins index creation failed:", e.message);
+        }
 
         try {
             await collaboratorsCol.createIndex({ scriptId: 1, email: 1 }, { unique: true });
@@ -4777,7 +4783,7 @@ const PORT = process.env.PORT || 3000;
 
 (function registerRemainingRoutes() {
     const authRouter = require("./auth");
-    mountedAuthRouter = authRouter(usersCollection, sessionStore, { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut, mgIndexSetKey, sessionCookieMaxAge: SESSION_COOKIE_MAX_AGE_MS });
+    mountedAuthRouter = authRouter(usersCollection, sessionStore, { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut, mgIndexSetKey, sessionCookieMaxAge: SESSION_COOKIE_MAX_AGE_MS, discordJoinsCol });
     app.use("/", mountedAuthRouter);
 
     app.get("/api/:id", async (req, res) => {

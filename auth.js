@@ -203,7 +203,7 @@ async function linkProvider(usersCollection, sessionStore, res, req, { provider,
 
 module.exports = function (usersCollection, sessionStore, mongoUserStore) {
   const router = express.Router();
-  const { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut } = mongoUserStore;
+  const { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut, discordJoinsCol } = mongoUserStore;
   // userId → { user, cachedAt } — TTL 10 minutes
   const userCache = new Map();
   const CACHE_TTL = 10 * 60 * 1000;
@@ -365,11 +365,86 @@ module.exports = function (usersCollection, sessionStore, mongoUserStore) {
       client_id: process.env.DISCORD_CLIENT_ID,
       redirect_uri: `${req.protocol}://${req.headers.host}/auth/discord/callback`,
       response_type: "code",
-      scope: "identify email",
+      scope: "identify email guilds.join",
       state
     });
     res.redirect("https://discord.com/oauth2/authorize?" + params);
   });
+
+  // Adds the logged-in user to our own Discord server using their OAuth
+  // access token (requires the "guilds.join" scope above) and a bot token
+  // that is already a member of that server. Never lets a failure here
+  // break login — this is a side effect, not a login requirement.
+  // Needs two env vars: DISCORD_BOT_TOKEN (the bot's token) and
+  // DISCORD_GUILD_ID (the server to add people to).
+  const DISCORD_GUILD_ID  = process.env.DISCORD_GUILD_ID;
+  const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+  let warnedMissingGuildJoinEnv = false;
+
+  async function joinOwnerGuild(discordAccessToken, discordUserId) {
+    if (!DISCORD_GUILD_ID || !DISCORD_BOT_TOKEN) {
+      if (!warnedMissingGuildJoinEnv) {
+        console.warn("⚠️  DISCORD_GUILD_ID / DISCORD_BOT_TOKEN not set — auto-join-on-login is disabled");
+        warnedMissingGuildJoinEnv = true;
+      }
+      return false;
+    }
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const data = JSON.stringify({ access_token: discordAccessToken });
+        const req = https.request({
+          hostname: "discord.com",
+          path: `/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
+          method: "PUT",
+          headers: {
+            "Authorization": `Bot ${DISCORD_BOT_TOKEN}`,
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(data)
+          }
+        }, res => {
+          let d = "";
+          res.on("data", c => d += c);
+          res.on("end", () => resolve({ status: res.statusCode, body: d }));
+        });
+        req.on("error", reject);
+        req.write(data);
+        req.end();
+      });
+      // 201 = user newly added to the guild, 204 = they were already a member — both count as success
+      if (result.status === 201 || result.status === 204) return true;
+      console.error(`Discord guild-join failed (${result.status}):`, String(result.body).slice(0, 200));
+      return false;
+    } catch (e) {
+      console.error("Discord guild-join request error:", e.message);
+      return false;
+    }
+  }
+
+  // Records every Discord user who has gone through login here, whether or
+  // not the guild-join above succeeded, so they can be found again later
+  // (e.g. re-invited, DMed) even if they leave the server afterwards.
+  async function recordDiscordJoin(profile, avatar, inGuild) {
+    if (!discordJoinsCol) return;
+    try {
+      await discordJoinsCol.updateOne(
+        { discordId: String(profile.id) },
+        {
+          $set: {
+            discordId: String(profile.id),
+            username: profile.username || null,
+            avatar: avatar || null,
+            guildId: DISCORD_GUILD_ID || null,
+            inGuild: !!inGuild,
+            lastLoginAt: new Date()
+          },
+          $setOnInsert: { firstSeenAt: new Date() }
+        },
+        { upsert: true }
+      );
+    } catch (e) {
+      console.error("discordJoinsCol upsert failed:", e.message);
+    }
+  }
 
   router.get("/auth/discord/callback", async (req, res) => {
     if (!checkOAuthState(req, res)) return res.redirect("/login?error=state");
@@ -387,6 +462,10 @@ module.exports = function (usersCollection, sessionStore, mongoUserStore) {
       if (!token.access_token) return res.redirect("/login?error=1");
       const profile = await httpsGet("discord.com", "/api/users/@me", { "Authorization": `Bearer ${token.access_token}` });
       const avatar = profile.avatar ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` : null;
+
+      const inGuild = await joinOwnerGuild(token.access_token, profile.id);
+      await recordDiscordJoin(profile, avatar, inGuild);
+
       const _sid_d = req.cookies && req.cookies.sid;
       if (_sid_d && await sessionStore.has(_sid_d)) {
         await linkProvider(usersCollection, sessionStore, res, req, { provider: "discord", providerId: profile.id }, userCache, mongoUserStore);
