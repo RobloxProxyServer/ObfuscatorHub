@@ -43,6 +43,7 @@ let collabAuditCol;   // append-only history of collaborator grant/claim/removal
 let mountedAuthRouter; // set once auth.js is mounted below — needed so
 let executionsCol; // MongoDB-backed activeExecutions — see execStore below
 let hcaptchaCol; // one-time /api/hcaptcha → /verify/:hash link records — see below
+let discordJoinsCol; // one row per Discord user who has gone through /auth/discord
 
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days from login
 const SESSION_COOKIE_MAX_AGE_MS = SESSION_TTL_MS; // keep cookie and Mongo doc in sync — a 30-day
