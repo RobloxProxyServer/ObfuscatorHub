@@ -158,6 +158,11 @@ async function initDB() {
         hcaptchaCol          = db.collection("hcaptcha_verifications"); // /api/hcaptcha → /verify/:hash
         discordJoinsCol      = db.collection("discord_guild_joins"); // one row per Discord user who has gone through /auth/discord
         try {
+            await userdataCollection.createIndex({ "data.email": 1 }, { collation: { locale: "en", strength: 2 } });
+        } catch (e) {
+            console.error("userdata email index creation failed:", e.message);
+        }
+        try {
             await discordJoinsCol.createIndex({ discordId: 1 }, { unique: true });
         } catch (e) {
             console.error("discord_guild_joins index creation failed:", e.message);
@@ -580,6 +585,15 @@ async function mgUserPut(userId, data) {
         { $set: { userId, data, updatedAt: new Date() } },
         { upsert: true }
     );
+}
+
+// Single indexed lookup used by auth.js instead of reading every user one by one.
+async function mgUserFindByVerifiedEmail(email) {
+    const doc = await userdataCollection.findOne(
+        { "data.email": String(email).toLowerCase(), "data.emailVerified": true },
+        { collation: { locale: "en", strength: 2 }, projection: { userId: 1 } }
+    );
+    return doc ? doc.userId : null;
 }
 
 async function mgIndexGet() {
@@ -4784,7 +4798,7 @@ const PORT = process.env.PORT || 3000;
 
 (function registerRemainingRoutes() {
     const authRouter = require("./auth");
-    mountedAuthRouter = authRouter(usersCollection, sessionStore, { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut, mgIndexSetKey, sessionCookieMaxAge: SESSION_COOKIE_MAX_AGE_MS, discordJoinsCol });
+    mountedAuthRouter = authRouter(usersCollection, sessionStore, { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut, mgIndexSetKey, mgUserFindByVerifiedEmail, sessionCookieMaxAge: SESSION_COOKIE_MAX_AGE_MS, discordJoinsCol });
     app.use("/", mountedAuthRouter);
 
     app.get("/api/:id", async (req, res) => {
