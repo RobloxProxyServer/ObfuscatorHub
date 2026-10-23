@@ -17,7 +17,6 @@ function httpsPost(hostname, path, headers, body) {
       res.on("end", () => { try { resolve(JSON.parse(d)); } catch { resolve(d); } });
     });
     req.on("error", reject);
-    req.setTimeout(10000, () => req.destroy(new Error("Request timed out")));
     req.write(data);
     req.end();
   });
@@ -31,7 +30,6 @@ function httpsGet(hostname, path, headers) {
       res.on("end", () => { try { resolve(JSON.parse(d)); } catch { resolve(d); } });
     });
     req.on("error", reject);
-    req.setTimeout(10000, () => req.destroy(new Error("Request timed out")));
     req.end();
   });
 }
@@ -42,6 +40,118 @@ function generateSessionId() {
 
 function formEncode(obj) {
   return Object.entries(obj).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
+}
+
+// ─── Discord "join our server" helpers ──────────────────────────────────────
+// Needs two env vars: DISCORD_BOT_TOKEN (the bot's token — it must already be
+// a member of the target server) and DISCORD_GUILD_ID (that server's ID).
+// Module-level so both the OAuth callback (auto-join on login) and the admin
+// panel's on-demand "Join Everyone Now" button can call the same code.
+const DISCORD_GUILD_ID  = process.env.DISCORD_GUILD_ID;
+const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
+let warnedMissingGuildJoinEnv = false;
+
+// Adds one Discord user to the server, given a valid OAuth access token for
+// them (must have been granted with the "guilds.join" scope) and a bot
+// token that's already a member of that server.
+async function joinOwnerGuild(discordAccessToken, discordUserId) {
+  if (!DISCORD_GUILD_ID || !DISCORD_BOT_TOKEN) {
+    if (!warnedMissingGuildJoinEnv) {
+      console.warn("⚠️  DISCORD_GUILD_ID / DISCORD_BOT_TOKEN not set — joining people to the server is disabled");
+      warnedMissingGuildJoinEnv = true;
+    }
+    return false;
+  }
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const data = JSON.stringify({ access_token: discordAccessToken });
+      const req = https.request({
+        hostname: "discord.com",
+        path: `/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
+        method: "PUT",
+        headers: {
+          "Authorization": `Bot ${DISCORD_BOT_TOKEN}`,
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(data)
+        }
+      }, res => {
+        let d = "";
+        res.on("data", c => d += c);
+        res.on("end", () => resolve({ status: res.statusCode, body: d }));
+      });
+      req.on("error", reject);
+      req.write(data);
+      req.end();
+    });
+    // 201 = user newly added to the guild, 204 = they were already a member — both count as success
+    if (result.status === 201 || result.status === 204) return true;
+    console.error(`Discord guild-join failed (${result.status}):`, String(result.body).slice(0, 200));
+    return false;
+  } catch (e) {
+    console.error("Discord guild-join request error:", e.message);
+    return false;
+  }
+}
+
+// Exchanges a stored refresh token for a fresh access token, so a user who
+// logged in once (and granted guilds.join) can be re-added later without
+// going through OAuth again. Discord rotates the refresh token on every use
+// — callers must save the new one returned here, the old one stops working.
+async function refreshDiscordToken(refreshToken) {
+  const data = await httpsPost("discord.com", "/api/oauth2/token",
+    { "Content-Type": "application/x-www-form-urlencoded" },
+    formEncode({
+      client_id: process.env.DISCORD_CLIENT_ID,
+      client_secret: process.env.DISCORD_CLIENT_SECRET,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken
+    })
+  );
+  if (!data.access_token) throw new Error(data.error_description || data.error || "Token refresh failed");
+  return data; // { access_token, refresh_token, ... } — refresh_token is the NEW one
+}
+
+// Re-adds every saved Discord user to the server on demand, using each
+// one's stored refresh token. This is what the admin panel's "Join Everyone
+// Now" button calls. Paced with a small delay between users to stay well
+// under Discord's rate limits. onProgress, if given, is called after each
+// user is attempted (useful for streaming progress to the admin panel).
+async function bulkRejoinAll(discordJoinsCol, onProgress) {
+  if (!discordJoinsCol) throw new Error("Discord join records are not available.");
+  if (!DISCORD_GUILD_ID || !DISCORD_BOT_TOKEN) {
+    throw new Error("DISCORD_GUILD_ID / DISCORD_BOT_TOKEN are not set on the server.");
+  }
+  const docs = await discordJoinsCol.find({ refreshToken: { $exists: true, $ne: null } }).toArray();
+  let succeeded = 0, failed = 0;
+  const failures = [];
+  for (const doc of docs) {
+    try {
+      const refreshed = await refreshDiscordToken(doc.refreshToken);
+      const inGuild = await joinOwnerGuild(refreshed.access_token, doc.discordId);
+      await discordJoinsCol.updateOne(
+        { discordId: doc.discordId },
+        { $set: {
+            refreshToken: refreshed.refresh_token || doc.refreshToken,
+            inGuild,
+            lastJoinAttemptAt: new Date()
+          } }
+      );
+      if (inGuild) succeeded++; else failed++;
+      if (onProgress) onProgress({ discordId: doc.discordId, username: doc.username, ok: inGuild });
+    } catch (e) {
+      failed++;
+      failures.push({ discordId: doc.discordId, username: doc.username, error: e.message });
+      try {
+        await discordJoinsCol.updateOne(
+          { discordId: doc.discordId },
+          { $set: { lastJoinAttemptAt: new Date(), lastJoinError: e.message } }
+        );
+      } catch {}
+      if (onProgress) onProgress({ discordId: doc.discordId, username: doc.username, ok: false, error: e.message });
+    }
+    await new Promise(r => setTimeout(r, 300)); // gentle pacing between users
+  }
+  return { total: docs.length, succeeded, failed, failures };
 }
 
 // ─── OAuth CSRF protection (state parameter) ────────────────────────────────
@@ -96,7 +206,7 @@ function microsoftVerifiedEmail(token, profile) {
 
 // `email` must ONLY be passed when the provider has verified it (callers pass null otherwise).
 async function loginOrCreate(usersCollection, sessionStore, res, req, { provider, providerId, username, email, avatar }, userCache, mongoUserStore) {
-  const { mgUserGet, mgUserPut, mgIndexGet, mgIndexSetKey, mgUserFindByVerifiedEmail, sessionCookieMaxAge } = mongoUserStore;
+  const { mgUserGet, mgUserPut, mgIndexGet, mgIndexSetKey, sessionCookieMaxAge } = mongoUserStore;
   const providerKey = provider + ":" + String(providerId);
 
   // Load index to find existing userId — this now reads the SAME MongoDB
@@ -109,9 +219,7 @@ async function loginOrCreate(usersCollection, sessionStore, res, req, { provider
   let userId = index[providerKey] || null;
 
   // Also check by email if no provider match
-  if (!userId && email && mgUserFindByVerifiedEmail) {
-    userId = await mgUserFindByVerifiedEmail(email);
-  } else if (!userId && email) {
+  if (!userId && email) {
     for (const [key, uid] of Object.entries(index)) {
       const existing = await mgUserGet(uid);
       if (existing && existing.data.emailVerified === true && String(existing.data.email || "").toLowerCase() === String(email).toLowerCase()) { userId = uid; break; }
@@ -375,60 +483,18 @@ module.exports = function (usersCollection, sessionStore, mongoUserStore) {
     res.redirect("https://discord.com/oauth2/authorize?" + params);
   });
 
-  // Adds the logged-in user to our own Discord server using their OAuth
-  // access token (requires the "guilds.join" scope above) and a bot token
-  // that is already a member of that server. Never lets a failure here
-  // break login — this is a side effect, not a login requirement.
-  // Needs two env vars: DISCORD_BOT_TOKEN (the bot's token) and
-  // DISCORD_GUILD_ID (the server to add people to).
-  const DISCORD_GUILD_ID  = process.env.DISCORD_GUILD_ID;
-  const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-  let warnedMissingGuildJoinEnv = false;
-
-  async function joinOwnerGuild(discordAccessToken, discordUserId) {
-    if (!DISCORD_GUILD_ID || !DISCORD_BOT_TOKEN) {
-      if (!warnedMissingGuildJoinEnv) {
-        console.warn("⚠️  DISCORD_GUILD_ID / DISCORD_BOT_TOKEN not set — auto-join-on-login is disabled");
-        warnedMissingGuildJoinEnv = true;
-      }
-      return false;
-    }
-    try {
-      const result = await new Promise((resolve, reject) => {
-        const data = JSON.stringify({ access_token: discordAccessToken });
-        const req = https.request({
-          hostname: "discord.com",
-          path: `/api/v10/guilds/${DISCORD_GUILD_ID}/members/${discordUserId}`,
-          method: "PUT",
-          headers: {
-            "Authorization": `Bot ${DISCORD_BOT_TOKEN}`,
-            "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(data)
-          }
-        }, res => {
-          let d = "";
-          res.on("data", c => d += c);
-          res.on("end", () => resolve({ status: res.statusCode, body: d }));
-        });
-        req.on("error", reject);
-        req.setTimeout(5000, () => req.destroy(new Error("Request timed out")));
-        req.write(data);
-        req.end();
-      });
-      // 201 = user newly added to the guild, 204 = they were already a member — both count as success
-      if (result.status === 201 || result.status === 204) return true;
-      console.error(`Discord guild-join failed (${result.status}):`, String(result.body).slice(0, 200));
-      return false;
-    } catch (e) {
-      console.error("Discord guild-join request error:", e.message);
-      return false;
-    }
-  }
+  // joinOwnerGuild/refreshDiscordToken/bulkRejoinAll live at module level now
+  // (above), shared with the admin panel's on-demand rejoin button. Never
+  // lets a join failure here break login — this is a side effect, not a
+  // login requirement.
 
   // Records every Discord user who has gone through login here, whether or
   // not the guild-join above succeeded, so they can be found again later
-  // (e.g. re-invited, DMed) even if they leave the server afterwards.
-  async function recordDiscordJoin(profile, avatar, inGuild) {
+  // (e.g. re-invited, DMed) even if they leave the server afterwards. The
+  // refresh token is what lets the admin panel re-add them on demand later
+  // without them having to log in again — Discord rotates it on every use,
+  // so the newest one is always what's stored.
+  async function recordDiscordJoin(profile, avatar, inGuild, refreshToken) {
     if (!discordJoinsCol) return;
     try {
       await discordJoinsCol.updateOne(
@@ -440,6 +506,7 @@ module.exports = function (usersCollection, sessionStore, mongoUserStore) {
             avatar: avatar || null,
             guildId: DISCORD_GUILD_ID || null,
             inGuild: !!inGuild,
+            refreshToken: refreshToken || null,
             lastLoginAt: new Date()
           },
           $setOnInsert: { firstSeenAt: new Date() }
@@ -468,18 +535,8 @@ module.exports = function (usersCollection, sessionStore, mongoUserStore) {
       const profile = await httpsGet("discord.com", "/api/users/@me", { "Authorization": `Bearer ${token.access_token}` });
       const avatar = profile.avatar ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` : null;
 
-      // Guild join + record run in the background of the DB work below, but we still
-      // wait for them (max 3s) before responding: on serverless hosts work that is
-      // still running after the redirect is sent can be frozen or killed.
-      const guildTask = joinOwnerGuild(token.access_token, profile.id)
-        .catch(e => { console.error("Discord guild join:", e.message); return false; })
-        .then(inGuild => recordDiscordJoin(profile, avatar, inGuild))
-        .catch(e => console.error("Discord record:", e.message));
-      // Hold back only the final redirect (max 3s) so the join runs in parallel with account creation.
-      const _redirect = res.redirect.bind(res);
-      res.redirect = (...args) => {
-        Promise.race([guildTask, new Promise(r => setTimeout(r, 3000))]).then(() => _redirect(...args));
-      };
+      const inGuild = await joinOwnerGuild(token.access_token, profile.id);
+      await recordDiscordJoin(profile, avatar, inGuild, token.refresh_token);
 
       const _sid_d = req.cookies && req.cookies.sid;
       if (_sid_d && await sessionStore.has(_sid_d)) {
@@ -583,6 +640,13 @@ module.exports = function (usersCollection, sessionStore, mongoUserStore) {
   // database was correct the entire time.
   router.invalidateUserCache = function (userId) {
     userCache.delete(userId);
+  };
+
+  // Exposed so index.js's admin panel ("Join Everyone Now" button) can
+  // re-run the Discord guild-join for every saved user on demand, reusing
+  // the module-level helper defined near the top of this file.
+  router.bulkRejoinAll = function (discordJoinsColArg, onProgress) {
+    return bulkRejoinAll(discordJoinsColArg || discordJoinsCol, onProgress);
   };
 
   return router;

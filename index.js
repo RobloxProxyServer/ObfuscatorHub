@@ -43,7 +43,6 @@ let collabAuditCol;   // append-only history of collaborator grant/claim/removal
 let mountedAuthRouter; // set once auth.js is mounted below — needed so
 let executionsCol; // MongoDB-backed activeExecutions — see execStore below
 let hcaptchaCol; // one-time /api/hcaptcha → /verify/:hash link records — see below
-let discordJoinsCol; // one row per Discord user who has gone through /auth/discord
 
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days from login
 const SESSION_COOKIE_MAX_AGE_MS = SESSION_TTL_MS; // keep cookie and Mongo doc in sync — a 30-day
@@ -157,11 +156,6 @@ async function initDB() {
         collabAuditCol       = db.collection("collab_audit");  // history of grant/claim/removal events
         hcaptchaCol          = db.collection("hcaptcha_verifications"); // /api/hcaptcha → /verify/:hash
         discordJoinsCol      = db.collection("discord_guild_joins"); // one row per Discord user who has gone through /auth/discord
-        try {
-            await userdataCollection.createIndex({ "data.email": 1 }, { collation: { locale: "en", strength: 2 } });
-        } catch (e) {
-            console.error("userdata email index creation failed:", e.message);
-        }
         try {
             await discordJoinsCol.createIndex({ discordId: 1 }, { unique: true });
         } catch (e) {
@@ -585,15 +579,6 @@ async function mgUserPut(userId, data) {
         { $set: { userId, data, updatedAt: new Date() } },
         { upsert: true }
     );
-}
-
-// Single indexed lookup used by auth.js instead of reading every user one by one.
-async function mgUserFindByVerifiedEmail(email) {
-    const doc = await userdataCollection.findOne(
-        { "data.email": String(email).toLowerCase(), "data.emailVerified": true },
-        { collation: { locale: "en", strength: 2 }, projection: { userId: 1 } }
-    );
-    return doc ? doc.userId : null;
 }
 
 async function mgIndexGet() {
@@ -1816,6 +1801,21 @@ async function adminLogoutAll(req, res) {
     try {
         const result = await sessionsCol.deleteMany({});
         res.json({ ok: true, deleted: result.deletedCount });
+    } catch(e) { res.json({ ok: false, error: e.message }); }
+}
+
+// Re-adds every saved Discord user to the server on demand — the same
+// guild-join that happens automatically on login, just re-run manually for
+// everyone at once (e.g. after someone left, or to pick up people who
+// weren't in the server before). Uses each person's stored refresh token,
+// so nobody has to log in again. See auth.js: joinOwnerGuild/bulkRejoinAll.
+async function adminJoinDiscordAll(req, res) {
+    try {
+        if (!mountedAuthRouter || !mountedAuthRouter.bulkRejoinAll) {
+            return res.json({ ok: false, error: "Discord join isn't wired up yet — restart the server after deploying." });
+        }
+        const result = await mountedAuthRouter.bulkRejoinAll(discordJoinsCol);
+        res.json({ ok: true, ...result });
     } catch(e) { res.json({ ok: false, error: e.message }); }
 }
 
@@ -4798,7 +4798,7 @@ const PORT = process.env.PORT || 3000;
 
 (function registerRemainingRoutes() {
     const authRouter = require("./auth");
-    mountedAuthRouter = authRouter(usersCollection, sessionStore, { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut, mgIndexSetKey, mgUserFindByVerifiedEmail, sessionCookieMaxAge: SESSION_COOKIE_MAX_AGE_MS, discordJoinsCol });
+    mountedAuthRouter = authRouter(usersCollection, sessionStore, { mgUserGet, mgUserPut, mgIndexGet, mgIndexPut, mgIndexSetKey, sessionCookieMaxAge: SESSION_COOKIE_MAX_AGE_MS, discordJoinsCol });
     app.use("/", mountedAuthRouter);
 
     app.get("/api/:id", async (req, res) => {
@@ -5263,6 +5263,7 @@ const PORT = process.env.PORT || 3000;
             case "migrate-temp":  return adminMigrateTemp(req, res);
             case "logout-all":    return adminLogoutAll(req, res);
             case "view-script":   return adminViewScript(req, res);
+            case "join-discord-all": return adminJoinDiscordAll(req, res);
             case "logout":
                 res.clearCookie("admin_session");
                 return res.json({ ok: true });
