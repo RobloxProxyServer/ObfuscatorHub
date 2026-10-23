@@ -1519,7 +1519,14 @@ app.post("/unlock", async (req, res) => {
     }
 
     const realCode = await readScriptCode(s);
-    if (!realCode) return res.json({ ok: false });
+    if (!realCode) {
+        // The password check already passed (or the caller is the owner) —
+        // this is Rubis/GitHub storage being unreachable right now, NOT a
+        // wrong password. Flagging it separately so the page doesn't tell
+        // a correct password "Wrong password. Try again." (see readScriptCode
+        // -> rubisGet, which logs the real HTTP status to the server console).
+        return res.json({ ok: false, storageError: true, error: "Could not load this script from storage right now (the storage service may be down). Try again in a minute." });
+    }
 
     res.json({ ok: true, code: realCode });
 });
