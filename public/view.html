@@ -396,6 +396,17 @@ async function unlock() {
     const data = await res.json();
     if (data.gone) { location.reload(); return; }
     if (!data.ok) {
+      // storageError means the password was right but the script's storage
+      // (Rubis/GitHub) couldn't be reached — showing "Wrong password" for
+      // that is actively misleading, so it gets its own message instead.
+      if (data.storageError) {
+        err.textContent = data.error || "Could not load this script right now. Try again in a minute.";
+        err.classList.add("show");
+        btn.disabled = false;
+        btn.innerHTML = 'Unlock Script';
+        return;
+      }
+      err.textContent = "Wrong password. Try again.";
       inp.classList.add("error");
       err.classList.add("show");
       setTimeout(() => inp.classList.remove("error"), 500);
