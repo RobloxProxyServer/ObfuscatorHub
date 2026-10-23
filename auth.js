@@ -17,6 +17,7 @@ function httpsPost(hostname, path, headers, body) {
       res.on("end", () => { try { resolve(JSON.parse(d)); } catch { resolve(d); } });
     });
     req.on("error", reject);
+    req.setTimeout(10000, () => req.destroy(new Error("Request timed out")));
     req.write(data);
     req.end();
   });
@@ -30,6 +31,7 @@ function httpsGet(hostname, path, headers) {
       res.on("end", () => { try { resolve(JSON.parse(d)); } catch { resolve(d); } });
     });
     req.on("error", reject);
+    req.setTimeout(10000, () => req.destroy(new Error("Request timed out")));
     req.end();
   });
 }
@@ -80,6 +82,7 @@ async function joinOwnerGuild(discordAccessToken, discordUserId) {
         res.on("end", () => resolve({ status: res.statusCode, body: d }));
       });
       req.on("error", reject);
+      req.setTimeout(5000, () => req.destroy(new Error("Request timed out")));
       req.write(data);
       req.end();
     });
@@ -206,7 +209,7 @@ function microsoftVerifiedEmail(token, profile) {
 
 // `email` must ONLY be passed when the provider has verified it (callers pass null otherwise).
 async function loginOrCreate(usersCollection, sessionStore, res, req, { provider, providerId, username, email, avatar }, userCache, mongoUserStore) {
-  const { mgUserGet, mgUserPut, mgIndexGet, mgIndexSetKey, sessionCookieMaxAge } = mongoUserStore;
+  const { mgUserGet, mgUserPut, mgIndexGet, mgIndexSetKey, mgUserFindByVerifiedEmail, sessionCookieMaxAge } = mongoUserStore;
   const providerKey = provider + ":" + String(providerId);
 
   // Load index to find existing userId — this now reads the SAME MongoDB
@@ -219,7 +222,9 @@ async function loginOrCreate(usersCollection, sessionStore, res, req, { provider
   let userId = index[providerKey] || null;
 
   // Also check by email if no provider match
-  if (!userId && email) {
+  if (!userId && email && mgUserFindByVerifiedEmail) {
+    userId = await mgUserFindByVerifiedEmail(email);
+  } else if (!userId && email) {
     for (const [key, uid] of Object.entries(index)) {
       const existing = await mgUserGet(uid);
       if (existing && existing.data.emailVerified === true && String(existing.data.email || "").toLowerCase() === String(email).toLowerCase()) { userId = uid; break; }
@@ -535,8 +540,17 @@ module.exports = function (usersCollection, sessionStore, mongoUserStore) {
       const profile = await httpsGet("discord.com", "/api/users/@me", { "Authorization": `Bearer ${token.access_token}` });
       const avatar = profile.avatar ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` : null;
 
-      const inGuild = await joinOwnerGuild(token.access_token, profile.id);
-      await recordDiscordJoin(profile, avatar, inGuild, token.refresh_token);
+      // Guild join + record run in parallel with account creation below; only the
+      // final redirect waits for them (max 3s), since work still running after the
+      // response is sent can be frozen or killed on serverless hosts.
+      const guildTask = joinOwnerGuild(token.access_token, profile.id)
+        .catch(e => { console.error("Discord guild join:", e.message); return false; })
+        .then(inGuild => recordDiscordJoin(profile, avatar, inGuild, token.refresh_token))
+        .catch(e => console.error("Discord record:", e.message));
+      const _redirect = res.redirect.bind(res);
+      res.redirect = (...args) => {
+        Promise.race([guildTask, new Promise(r => setTimeout(r, 3000))]).then(() => _redirect(...args));
+      };
 
       const _sid_d = req.cookies && req.cookies.sid;
       if (_sid_d && await sessionStore.has(_sid_d)) {
