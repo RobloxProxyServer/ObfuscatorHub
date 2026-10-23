@@ -124,6 +124,22 @@ footer{text-align:center;padding:30px 20px;font-size:10.5px;color:rgba(224,232,2
       <div class="log" id="logLogoutAll"></div>
     </div>
 
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Join Everyone to Discord</div>
+        <div class="card-badge badge-safe">Safe to run anytime</div>
+      </div>
+      <div class="card-desc">
+        Adds every saved Discord user back to the server right now, using each person's stored refresh token
+        — nobody has to log in again. This is the same join that happens automatically on login; this button
+        just re-runs it for everyone at once (e.g. after someone left the server).
+      </div>
+      <div class="row">
+        <button class="act" id="btnJoinDiscordAll">Join Everyone Now</button>
+      </div>
+      <div class="log" id="logJoinDiscordAll"></div>
+    </div>
+
     <div class="card wide">
       <div class="card-head">
         <div class="card-title">View Script by ID</div>
@@ -261,6 +277,20 @@ document.getElementById('btnLogoutAll').addEventListener('click', async () => {
   const btn = document.getElementById('btnLogoutAll');
   const data = await callAdmin('logout-all', 'logLogoutAll', btn);
   if (data) log('logLogoutAll', `✅ Cleared ${data.deleted} session(s). Every user is now logged out.`, 'ok');
+});
+
+// ── Join everyone to Discord ───────────────────────────────────────────────
+document.getElementById('btnJoinDiscordAll').addEventListener('click', async () => {
+  if (!confirm('Re-add every saved Discord user to the server now?')) return;
+  const btn = document.getElementById('btnJoinDiscordAll');
+  const data = await callAdmin('join-discord-all', 'logJoinDiscordAll', btn);
+  if (!data) return;
+  log('logJoinDiscordAll', `✅ ${data.succeeded}/${data.total} joined or already in the server. ${data.failed} failed.`, data.failed ? 'err' : 'ok');
+  if (data.failures && data.failures.length) {
+    data.failures.forEach(f => {
+      log('logJoinDiscordAll', `  ❌ ${f.username || f.discordId}: ${f.error}`, 'err');
+    });
+  }
 });
 
 // ── View script by ID ────────────────────────────────────────────────────
